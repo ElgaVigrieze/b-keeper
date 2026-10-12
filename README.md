@@ -1,6 +1,6 @@
 # 📒 B-Keeper
 
-Bookkeeping application for small Latvian companies. Handles invoices, payroll, VAT declarations, and EDS (Electronic Declaration System) submissions.
+Bookkeeping application for small Latvian companies with a focus on EDS reporting automation. Handles invoices, payroll, VAT declarations.
 
 [![Java](https://img.shields.io/badge/Java-21-orange)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-brightgreen)](https://spring.io/projects/spring-boot)
