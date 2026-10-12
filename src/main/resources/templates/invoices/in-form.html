@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Ienākošais rēķins – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('invoices-in')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <h5 class="mb-0 fw-semibold" th:text="${invoice.id==null} ? 'Jauns ienākošais rēķins' : 'Labot rēķinu'">Rēķins</h5>
+        <a th:href="@{/invoices/in}" class="btn btn-sm btn-outline-secondary">← Atpakaļ</a>
+    </div>
+
+    <!-- Supplier match banner -->
+    <div th:if="${matchedSupplier != null and !#strings.isEmpty(matchedSupplier)}"
+         class="alert mb-3"
+         th:classappend="${#strings.contains(matchedSupplier,'atpazīts')} ? 'alert-success' : 'alert-warning'">
+        <strong th:text="${#strings.contains(matchedSupplier,'atpazīts')} ? '✅ ' : '⚠️ '"></strong>
+        <span th:text="${matchedSupplier}"></span>
+    </div>
+
+    <!-- AI extraction status banner -->
+    <div th:if="${extractedInfo != null and !#strings.isEmpty(extractedInfo)}"
+         class="alert mb-3"
+         th:classappend="${#strings.contains(extractedInfo,'veiksmīgi')} ? 'alert-success' : (${#strings.contains(extractedInfo,'nevarēja')} ? 'alert-warning' : 'alert-info')">
+        <span th:text="${extractedInfo}"></span>
+        <small class="d-block text-muted mt-1" th:if="${#strings.contains(extractedInfo,'veiksmīgi')}">
+            AI (mistral-nemo) izvilka datus no PDF. Pārbaudiet visus laukus pirms saglabāšanas.
+        </small>
+    </div>
+
+    <!-- Stored document link -->
+    <div th:if="${invoice.pdfFilename != null and !#strings.isEmpty(invoice.pdfFilename)}"
+         class="alert alert-secondary d-flex align-items-center gap-3 mb-3">
+        <span>📄 <strong>Saglabātais dokuments:</strong>
+            <span th:text="${invoice.pdfFilename}"></span>
+        </span>
+        <a th:href="@{/documents/view(path=${invoice.pdfFilename})}" target="_blank"
+           class="btn btn-sm btn-outline-primary ms-auto">Atvērt PDF</a>
+    </div>
+
+    <!-- ══ SUPPLIER SELECTOR — separate form (never nest inside main form) ══ -->
+    <div class="card border-info bg-light p-3 mb-3" style="max-width:720px"
+         th:if="${suppliers != null and !#lists.isEmpty(suppliers)}">
+        <form th:action="@{/invoices/in/apply-supplier}" method="post">
+            <input type="hidden" name="id"               th:value="${invoice.id}"/>
+            <input type="hidden" name="invoiceNumber"    th:value="${invoice.invoiceNumber}"/>
+            <input type="hidden" name="invoiceDate"      th:value="${invoice.invoiceDate}"/>
+            <input type="hidden" name="amountExclVat"    th:value="${invoice.amountExclVat}"/>
+            <input type="hidden" name="vatRate"          th:value="${invoice.vatRate}"/>
+            <input type="hidden" name="vatAmount"        th:value="${invoice.vatAmount}"/>
+            <input type="hidden" name="amountInclVat"    th:value="${invoice.amountInclVat}"/>
+            <input type="hidden" name="originalCurrency" th:value="${invoice.originalCurrency}"/>
+            <input type="hidden" name="originalAmount"   th:value="${invoice.originalAmount}"/>
+            <input type="hidden" name="pdfFilename"      th:value="${invoice.pdfFilename}"/>
+            <input type="hidden" name="periodYear"       th:value="${invoice.periodYear}"/>
+            <input type="hidden" name="periodMonth"      th:value="${invoice.periodMonth}"/>
+
+            <label class="form-label fw-semibold text-info mb-2">Atlasīt piegādātāju no datubāzes</label>
+            <div class="d-flex gap-2 align-items-end">
+                <div class="flex-grow-1">
+                    <select class="form-select" name="supplierId">
+                        <option value="">-- Izvēlieties piegādātāju --</option>
+                        <option th:each="s : ${suppliers}"
+                                th:value="${s.id}"
+                                th:text="${s.name} + (${s.vatNumber != null and !#strings.isEmpty(s.vatNumber)} ? ' (' + ${s.vatNumber} + ')' : '')"
+                                th:selected="${invoice.supplierName != null and s.name == invoice.supplierName}">
+                        </option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-info text-white">Lietot</button>
+            </div>
+            <small class="text-muted d-block mt-1">
+                Atlasot piegādātāju, tā reģistrācijas dati tiek ielādēti automātiski. Jums jāievada tikai summas.
+            </small>
+        </form>
+    </div>
+
+    <!-- ══ MAIN INVOICE SAVE FORM ══ -->
+    <div class="card border-0 shadow-sm p-4" style="max-width:720px">
+        <form th:action="@{/invoices/in/save}" method="post" th:object="${invoice}">
+            <input type="hidden" th:field="*{id}"/>
+            <input type="hidden" th:field="*{pdfFilename}"/>
+            <div class="row g-3">
+
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold">Rēķina numurs</label>
+                    <input type="text" class="form-control" th:field="*{invoiceNumber}" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Rēķina datums</label>
+                    <input type="date" class="form-control" th:field="*{invoiceDate}" required/>
+                </div>
+
+                <div class="col-12"><hr class="my-1"/></div>
+
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold">Piegādātājs</label>
+                    <input type="text" class="form-control" th:field="*{supplierName}" required/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">PVN reģ. nr.</label>
+                    <input type="text" class="form-control" th:field="*{supplierVatNumber}" placeholder="LV..."/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Valsts</label>
+                    <input type="text" class="form-control" th:field="*{supplierCountry}"
+                           placeholder="LV" maxlength="2" style="text-transform:uppercase"/>
+                </div>
+
+                <div class="col-12"><hr class="my-1"/></div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Summa bez PVN (EUR)</label>
+                    <input type="number" step="0.01" class="form-control" th:field="*{amountExclVat}" required
+                           oninput="calcVat()"/>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">PVN %</label>
+                    <select class="form-select" th:field="*{vatRate}" onchange="calcVat()">
+                        <option value="21.0">21%</option>
+                        <option value="12.0">12%</option>
+                        <option value="5.0">5%</option>
+                        <option value="0.0">0%</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">PVN (EUR)</label>
+                    <input type="number" step="0.01" class="form-control" th:field="*{vatAmount}" id="vatAmt"/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Kopā (EUR)</label>
+                    <input type="number" step="0.01" class="form-control" th:field="*{amountInclVat}" id="totalAmt"/>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">PVN forma – rinda</label>
+                    <select class="form-select" th:field="*{pvnLine}">
+                        <option value="62">62 – Iekšzeme (PVN 1-I)</option>
+                        <option value="55">55 – ES preces (PVN 1-II)</option>
+                        <option value="54">54 – Pakalpojumi (reverss)</option>
+                        <option value="61">61 – Imports</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Dok. veids</label>
+                    <select class="form-select" th:field="*{documentTypeCode}">
+                        <option value="A">A – Rēķins</option>
+                        <option value="G">G – ES preces</option>
+                        <option value="T">T – Telekomunikācijas</option>
+                        <option value="N">N – Pakalpojumi no ārvalsts</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Orig. valūta</label>
+                    <input type="text" class="form-control" th:field="*{originalCurrency}"
+                           placeholder="PLN / CZK (tukšs = EUR)" maxlength="3" style="text-transform:uppercase"/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Summa orig. valūtā</label>
+                    <input type="number" step="0.01" class="form-control" th:field="*{originalAmount}"/>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Kategorija</label>
+                    <select class="form-select" th:field="*{expenseCategory}">
+                        <option value="GENERAL">Vispārējs</option>
+                        <option value="IT">IT</option>
+                        <option value="FUEL">Degviela</option>
+                        <option value="RENT">Noma</option>
+                        <option value="SERVICES">Pakalpojumi</option>
+                        <option value="MATERIALS">Materiāli</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end pb-1">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" th:field="*{deductibleVat}" id="dedVat"/>
+                        <label class="form-check-label" for="dedVat">Priekšnodoklis atskaitāms</label>
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-primary px-4">Saglabāt</button>
+                    <a th:href="@{/invoices/in}" class="btn btn-outline-secondary">Atcelt</a>
+                    <form th:if="${invoice.id != null}"
+                          th:action="@{/invoices/in/{id}/delete(id=${invoice.id})}"
+                          method="post" class="ms-auto"
+                          onsubmit="return confirm('Dzēst šo rēķinu?')">
+                        <button type="submit" class="btn btn-danger">Dzēst rēķinu</button>
+                    </form>
+                </div>
+            </div>
+        </form>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script>
+function calcVat() {
+    const base = parseFloat(document.querySelector('[name="amountExclVat"]').value) || 0;
+    const rate = parseFloat(document.querySelector('[name="vatRate"]').value) || 0;
+    const vat  = Math.round(base * rate / 100 * 100) / 100;
+    document.getElementById('vatAmt').value   = vat.toFixed(2);
+    document.getElementById('totalAmt').value = (base + vat).toFixed(2);
+}
+document.addEventListener('DOMContentLoaded', calcVat);
+</script>
+</body></html>

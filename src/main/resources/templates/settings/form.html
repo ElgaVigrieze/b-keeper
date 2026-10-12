@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Iestatījumi – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('settings')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar"><h5 class="mb-0 fw-semibold">Uzņēmuma iestatījumi</h5></div>
+
+    <div th:if="${success}" class="alert alert-success mb-3" th:text="${success}"></div>
+
+    <div class="card border-0 shadow-sm p-4" style="max-width:640px">
+        <form th:action="@{/settings/save}" method="post" th:object="${company}">
+            <input type="hidden" name="fiscalYearStart"
+                   th:value="${company.fiscalYearStart != null ? company.fiscalYearStart : '01-01'}"/>
+            <input type="hidden" name="accountingType"
+                   th:value="${company.accountingType != null ? company.accountingType : 'SIMPLE'}"/>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Uzņēmuma nosaukums</label>
+                    <input type="text" class="form-control" th:field="*{name}" required/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Reģistrācijas numurs</label>
+                    <input type="text" class="form-control" th:field="*{regNumber}" placeholder="41203041233"/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">PVN reģistrācijas numurs</label>
+                    <input type="text" class="form-control" th:field="*{vatNumber}" placeholder="LV41203041233"/>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Juridiskā adrese</label>
+                    <input type="text" class="form-control" th:field="*{legalAddress}"/>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Bankas konts (IBAN)</label>
+                    <input type="text" class="form-control" th:field="*{bankAccount}" placeholder="LV51HABA0551031251238"/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">E-pasts</label>
+                    <input type="email" class="form-control" th:field="*{email}"/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Tālrunis</label>
+                    <input type="text" class="form-control" th:field="*{phone}"/>
+                </div>
+                <div class="col-12 pt-2">
+                    <button type="submit" class="btn btn-primary px-4">Saglabāt</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body></html>

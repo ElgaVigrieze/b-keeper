@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Algu aprēķins – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('payroll')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <h5 class="mb-0 fw-semibold">Algu aprēķins</h5>
+        <div class="d-flex gap-2 align-items-center">
+            <form method="get" class="d-flex gap-2">
+                <select name="month" class="form-select form-select-sm" style="width:150px" onchange="this.form.submit()">
+                    <option th:each="e:${months}" th:value="${e.key}" th:selected="${e.key==displayMonth}" th:text="${e.value}"></option>
+                </select>
+                <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+                    <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
+                </select>
+            </form>
+            <form th:action="@{/payroll/calculate}" method="post" class="d-inline">
+                <input type="hidden" name="year"  th:value="${displayYear}"/>
+                <input type="hidden" name="month" th:value="${displayMonth}"/>
+                <button type="submit" class="btn btn-success btn-sm">+ Aprēķināt</button>
+            </form>
+            <form th:if="${!#lists.isEmpty(entries)}"
+                  th:action="@{/payroll/recalculate-all}" method="post" class="d-inline"
+                  onsubmit="return confirm('Pāraprēķināt visas algas šim periodam?')">
+                <input type="hidden" name="year"  th:value="${displayYear}"/>
+                <input type="hidden" name="month" th:value="${displayMonth}"/>
+                <button type="submit" class="btn btn-warning btn-sm">↺ Pāraprēķināt visus</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+
+    <div th:if="${!#lists.isEmpty(entries)}" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="p-3 bg-white rounded border">
+                <div class="text-muted small text-uppercase">Kopējais bruto</div>
+                <div class="fw-bold fs-5" th:text="'EUR ' + ${#numbers.formatDecimal(totalGross, 1, 2)}">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-white rounded border">
+                <div class="text-muted small text-uppercase">VSAOI darba devējs</div>
+                <div class="fw-bold fs-5 text-danger" th:text="'EUR ' + ${#numbers.formatDecimal(totalVsaoiEmployer, 1, 2)}">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-white rounded border">
+                <div class="text-muted small text-uppercase">Kopējās izmaksas</div>
+                <div class="fw-bold fs-5 text-danger" th:text="'EUR ' + ${#numbers.formatDecimal(totalEmployerCost, 1, 2)}">-</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 bg-white rounded border">
+                <div class="text-muted small text-uppercase">Kopējais neto</div>
+                <div class="fw-bold fs-5 text-success" th:text="'EUR ' + ${#numbers.formatDecimal(totalNet, 1, 2)}">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Darbinieks</th>
+                <th class="text-end">Bruto</th>
+                <th class="text-end" title="VSAOI darba devējs 23.59%">VSAOI d.dev.</th>
+                <th class="text-end" title="VSAOI darba ņēmējs 10.50%">VSAOI d.ņēm.</th>
+                <th class="text-end" title="IIN 23%">IIN</th>
+                <th class="text-end" title="Riska nodeva 0.46%">Riska</th>
+                <th class="text-end fw-bold">Neto</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(entries)}">
+                <td colspan="8" class="text-center text-muted py-5">
+                    Nav aprēķinu šajā periodā.<br/>
+                    <small>Nospiediet "+ Aprēķināt" lai automātiski aprēķinātu visiem aktīvajiem darbiniekiem.</small>
+                </td>
+            </tr>
+            <tr th:each="e : ${entries}">
+                <td>
+                    <span th:each="emp : ${employees}" th:if="${emp.id == e.employeeId}"
+                          th:text="${emp.firstName + ' ' + emp.lastName}">–</span>
+                    <small class="text-muted d-block" th:each="emp : ${employees}" th:if="${emp.id == e.employeeId}"
+                           th:text="${emp.personalCode}"></small>
+                </td>
+                <td class="text-end"                  th:text="${#numbers.formatDecimal(e.grossSalary,   1,2)}">–</td>
+                <td class="text-end text-danger"       th:text="${#numbers.formatDecimal(e.vsaoiEmployer, 1,2)}">–</td>
+                <td class="text-end"                  th:text="${#numbers.formatDecimal(e.vsaoiEmployee, 1,2)}">–</td>
+                <td class="text-end"                  th:text="${#numbers.formatDecimal(e.iin,           1,2)}">–</td>
+                <td class="text-end"                  th:text="${#numbers.formatDecimal(e.riskDuty,      1,2)}">–</td>
+                <td class="text-end fw-bold text-success" th:text="${#numbers.formatDecimal(e.netSalary,  1,2)}">–</td>
+                <td class="text-end">
+                    <form th:action="@{/payroll/{id}/recalculate(id=${e.id})}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Pāraprēķināt">↺</button>
+                    </form>
+                    <form th:action="@{/payroll/{id}/delete(id=${e.id})}" method="post" class="d-inline"
+                          onsubmit="return confirm('Dzēst šo aprēķinu?')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Dzēst</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted small mt-2">
+        Likmes: VSAOI darba devējs 23.59% &nbsp;·&nbsp;
+        VSAOI darba ņēmējs 10.50% &nbsp;·&nbsp;
+        IIN 23% &nbsp;·&nbsp;
+        Riska nodeva 0.46%
+    </p>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body></html>

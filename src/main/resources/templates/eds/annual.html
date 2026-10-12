@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Gada pārskats – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+.gp-section{background:#fff;border:1px solid #e2e8f0;border-radius:.5rem;padding:1.25rem;margin-bottom:1rem}
+.gp-section h6{color:#0f172a;font-weight:700;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:2px solid #e2e8f0}
+.gp-row{display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid #f1f5f9}
+.gp-row:last-child{border-bottom:none}
+.gp-row .label{color:#475569;font-size:.875rem}
+.gp-row .value{font-weight:600;min-width:100px;text-align:right}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('eds-annual')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <div>
+            <h5 class="mb-0 fw-semibold">Gada pārskats</h5>
+            <small class="text-muted">Ieņēmumu un izdevumu kopsavilkums no I/I žurnāla</small>
+        </div>
+        <form method="get" class="d-flex gap-2 align-items-center">
+            <label class="text-muted small me-1">Gads:</label>
+            <select name="year" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
+                <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
+            </select>
+        </form>
+    </div>
+
+    <div class="row g-3">
+        <!-- Summary cards -->
+        <div class="col-md-4">
+            <div class="gp-section text-center">
+                <div class="text-muted small text-uppercase mb-1">Kopējie ieņēmumi</div>
+                <div class="fw-bold fs-4 text-success"
+                     th:text="'EUR ' + ${#numbers.formatDecimal(yearIncome,1,2)}">—</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="gp-section text-center">
+                <div class="text-muted small text-uppercase mb-1">Kopējie izdevumi</div>
+                <div class="fw-bold fs-4 text-danger"
+                     th:text="'EUR ' + ${#numbers.formatDecimal(yearExpense,1,2)}">—</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="gp-section text-center">
+                <div class="text-muted small text-uppercase mb-1">Peļņa / Zaudējumi</div>
+                <div class="fw-bold fs-4"
+                     th:classappend="${profit >= 0} ? 'text-success' : 'text-danger'"
+                     th:text="'EUR ' + ${#numbers.formatDecimal(profit,1,2)}">—</div>
+            </div>
+        </div>
+
+        <!-- Monthly breakdown -->
+        <div class="col-12">
+            <div class="gp-section">
+                <h6>Mēneša sadalījums — <span th:text="${displayYear}">—</span></h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Mēnesis</th>
+                            <th class="text-end text-success">Ieņēmumi</th>
+                            <th class="text-end text-danger">Izdevumi</th>
+                            <th class="text-end">Rezultāts</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="m : ${#numbers.sequence(1,12)}">
+                            <td th:text="${months[m]}">—</td>
+                            <td class="text-end text-success"
+                                th:text="${monthlyIncome[m] > 0} ? ${#numbers.formatDecimal(monthlyIncome[m],1,2)} : '—'">—</td>
+                            <td class="text-end text-danger"
+                                th:text="${monthlyExpense[m] > 0} ? ${#numbers.formatDecimal(monthlyExpense[m],1,2)} : '—'">—</td>
+                            <td class="text-end fw-semibold"
+                                th:with="res=${monthlyIncome[m] - monthlyExpense[m]}"
+                                th:classappend="${res > 0} ? 'text-success' : (${res < 0} ? 'text-danger' : 'text-muted')"
+                                th:text="${monthlyIncome[m] > 0 or monthlyExpense[m] > 0} ? ${#numbers.formatDecimal(monthlyIncome[m] - monthlyExpense[m],1,2)} : '—'">—</td>
+                        </tr>
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>Kopā</td>
+                            <td class="text-end text-success" th:text="${#numbers.formatDecimal(yearIncome,1,2)}">—</td>
+                            <td class="text-end text-danger" th:text="${#numbers.formatDecimal(yearExpense,1,2)}">—</td>
+                            <td class="text-end"
+                                th:classappend="${profit >= 0} ? 'text-success' : 'text-danger'"
+                                th:text="${#numbers.formatDecimal(profit,1,2)}">—</td>
+                        </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Note about annual report submission -->
+        <div class="col-12">
+            <div class="alert alert-info">
+                <strong>Gada pārskata iesniegšana:</strong>
+                Latvijā SIA ar apgrozījumu līdz 300 000 EUR gadā var iesniegt vienkāršotu gada pārskatu
+                (bilance + peļņas vai zaudējumu aprēķins). Termiņš: <strong>4 mēneši</strong> pēc pārskata gada beigām
+                (parasti līdz 30. aprīlim). Jāiesniedz <a href="https://eds.vid.gov.lv" target="_blank">EDS</a> vai
+                <a href="https://lursoft.lv" target="_blank">caur Lursoft</a>.
+            </div>
+        </div>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

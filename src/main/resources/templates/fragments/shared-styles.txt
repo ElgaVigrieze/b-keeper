@@ -1,0 +1,5 @@
+/*
+ * Shared styles injected into every page via a <style> block.
+ * Keep this file as a reference — paste the <style> content into each template.
+ * (We avoid the Thymeleaf layout dialect for now to keep dependencies minimal.)
+ */

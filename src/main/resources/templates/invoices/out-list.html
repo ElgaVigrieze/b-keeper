@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Izejošie rēķini – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('invoices-out')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <h5 class="mb-0 fw-semibold">Izejošie rēķini</h5>
+        <div class="d-flex gap-2 align-items-center">
+            <form method="get" class="d-flex gap-2">
+                <select name="month" class="form-select form-select-sm" style="width:150px" onchange="this.form.submit()">
+                    <option th:each="e:${months}" th:value="${e.key}" th:selected="${e.key==displayMonth}" th:text="${e.value}"></option>
+                </select>
+                <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+                    <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
+                </select>
+            </form>
+            <a th:href="@{/invoices/out/new}" class="btn btn-primary btn-sm">+ Jauns rēķins</a>
+        </div>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success alert-dismissible" th:text="${success}"></div>
+
+    <div class="card border-0 shadow-sm">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Nr.</th><th>Datums</th><th>Klients</th>
+                <th class="text-end">Bez PVN</th><th class="text-end">PVN</th><th class="text-end">Kopā</th>
+                <th>Statuss</th><th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(invoices)}">
+                <td colspan="8" class="text-center text-muted py-4">Nav rēķinu šajā periodā</td>
+            </tr>
+            <tr th:each="inv : ${invoices}">
+                <td th:text="${inv.invoiceNumber}">-</td>
+                <td th:text="${inv.issueDate}">-</td>
+                <td th:text="${inv.clientName}">-</td>
+                <td class="text-end" th:text="${#numbers.formatDecimal(inv.amountExclVat,1,2)}">-</td>
+                <td class="text-end" th:text="${#numbers.formatDecimal(inv.vatAmount,1,2)}">-</td>
+                <td class="text-end fw-semibold" th:text="${#numbers.formatDecimal(inv.amountInclVat,1,2)}">-</td>
+                <td>
+                    <span class="badge rounded-pill"
+                          th:classappend="${inv.status == 'PAID'} ? 'bg-success' : (${inv.status == 'OVERDUE'} ? 'bg-danger' : (${inv.status == 'ISSUED'} ? 'bg-primary' : 'bg-secondary'))"
+                          th:text="${inv.status}">-</span>
+                </td>
+                <td>
+                    <a th:href="@{/invoices/out/{id}/edit(id=${inv.id})}" class="btn btn-sm btn-outline-secondary">Labot</a>
+                    <form th:action="@{/invoices/out/{id}/delete(id=${inv.id})}" method="post" class="d-inline"
+                          onsubmit="return confirm('Dzēst rēķinu?')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Dzēst</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body></html>

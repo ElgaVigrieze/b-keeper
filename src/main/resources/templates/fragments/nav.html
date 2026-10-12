@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Single shared sidebar. Use in every page:
+  <nav th:replace="~{fragments/nav :: sidebar('page-key')}"></nav>
+
+  Page keys:
+    dashboard, invoices-out, invoices-in, suppliers, assets,
+    employees, payroll, journal,
+    eds-pvn, eds-ddz, eds-uin, eds-annual,
+    settings
+-->
+<nav th:fragment="sidebar(activePage)" class="bk-sidebar">
+
+    <div class="brand">B-<span>Keeper</span></div>
+
+    <div class="nav-section mt-2">Pārskats</div>
+    <a th:href="@{/}"
+       th:classappend="${activePage == 'dashboard'} ? ' active' : ''">Panelis</a>
+
+    <div class="nav-section">Ieņēmumi</div>
+    <a th:href="@{/invoices/out}"
+       th:classappend="${activePage == 'invoices-out'} ? ' active' : ''">Izejošie rēķini</a>
+    <a th:href="@{/customers}"
+       th:classappend="${activePage == 'customers'} ? ' active' : ''">Klienti</a>
+
+    <div class="nav-section">Izdevumi</div>
+    <a th:href="@{/invoices/in}"
+       th:classappend="${activePage == 'invoices-in'} ? ' active' : ''">Ienākošie rēķini</a>
+    <a th:href="@{/suppliers}"
+       th:classappend="${activePage == 'suppliers'} ? ' active' : ''">Piegādātāji</a>
+    <a th:href="@{/assets}"
+       th:classappend="${activePage == 'assets'} ? ' active' : ''">Pamatlīdzekļi</a>
+
+    <div class="nav-section">Algas</div>
+    <a th:href="@{/employees}"
+       th:classappend="${activePage == 'employees'} ? ' active' : ''">Darbinieki</a>
+    <a th:href="@{/payroll}"
+       th:classappend="${activePage == 'payroll'} ? ' active' : ''">Algu aprēķins</a>
+
+    <div class="nav-section">Grāmatvedība</div>
+    <a th:href="@{/journal}"
+       th:classappend="${activePage == 'journal'} ? ' active' : ''">I/I žurnāls</a>
+
+    <div class="nav-section">EDS</div>
+    <a th:href="@{/eds/pvn}"
+       th:classappend="${activePage == 'eds-pvn'} ? ' active' : ''">PVN deklarācija</a>
+    <a th:href="@{/eds/ddz}"
+       th:classappend="${activePage == 'eds-ddz'} ? ' active' : ''">Darba dev. ziņ.</a>
+    <a th:href="@{/eds/uin}"
+       th:classappend="${activePage == 'eds-uin'} ? ' active' : ''">UIN deklarācija</a>
+    <a th:href="@{/eds/annual}"
+       th:classappend="${activePage == 'eds-annual'} ? ' active' : ''">Gada pārskats</a>
+
+    <div class="mt-auto mb-3">
+        <div class="nav-section">Sistēma</div>
+        <a th:href="@{/settings}"
+           th:classappend="${activePage == 'settings'} ? ' active' : ''">Iestatījumi</a>
+    </div>
+
+</nav>
+
+</body>
+</html>

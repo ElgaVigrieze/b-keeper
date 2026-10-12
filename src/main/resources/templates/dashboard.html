@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+.stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.5rem;padding:1.25rem}
+.stat-card .label{color:#64748b;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+.stat-card .value{font-size:1.5rem;font-weight:600;color:#0f172a}
+.value-danger{color:#dc2626!important}
+.value-success{color:#16a34a!important}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('dashboard')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <div>
+            <h5 class="mb-0 fw-semibold" th:text="${company != null ? company.name : 'B-Keeper'}">B-Keeper</h5>
+            <small class="text-muted" th:text="${company != null ? company.vatNumber : ''}"></small>
+        </div>
+        <form method="get" action="/" class="d-flex gap-2 align-items-center">
+            <select name="month" class="form-select form-select-sm" style="width:150px" onchange="this.form.submit()">
+                <option th:each="entry : ${months}"
+                        th:value="${entry.key}"
+                        th:selected="${entry.key == displayMonth}"
+                        th:text="${entry.value}">
+                </option>
+            </select>
+            <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+                <option th:each="y : ${#numbers.sequence(2024,2030)}"
+                        th:value="${y}"
+                        th:selected="${y == displayYear}"
+                        th:text="${y}">
+                </option>
+            </select>
+        </form>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="label">Apgrozijums</div>
+                <div class="value" th:text="'EUR ' + ${#numbers.formatDecimal(turnover, 1, 2)}">0.00</div>
+                <small class="text-muted">menesa kopa</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="label">Maksajamais PVN</div>
+                <div class="value"
+                     th:classappend="${vatPayable > 0} ? 'value-danger' : 'value-success'"
+                     th:text="'EUR ' + ${#numbers.formatDecimal(vatPayable, 1, 2)}">0.00</div>
+                <small class="text-muted"
+                       th:text="'Iz. ' + ${#numbers.formatDecimal(outputVat,1,2)} + ' / Ien. ' + ${#numbers.formatDecimal(inputVat,1,2)}">
+                </small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="label">Algu izmaksas</div>
+                <div class="value" th:text="'EUR ' + ${#numbers.formatDecimal(grossSalary + employerCost, 1, 2)}">0.00</div>
+                <small class="text-muted"
+                       th:text="'Bruto ' + ${#numbers.formatDecimal(grossSalary,1,2)} + ' + darba dev. ' + ${#numbers.formatDecimal(employerCost,1,2)}">
+                </small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="label">Pelna (provizorisks)</div>
+                <div class="value"
+                     th:classappend="${income - expense >= 0} ? 'value-success' : 'value-danger'"
+                     th:text="'EUR ' + ${#numbers.formatDecimal(income - expense, 1, 2)}">0.00</div>
+                <small class="text-muted"
+                       th:text="'I: ' + ${#numbers.formatDecimal(income,1,2)} + ' / E: ' + ${#numbers.formatDecimal(expense,1,2)}">
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="fw-semibold mb-3" th:text="${displayYear} + '. gada kopsavilkums'">Kopsavilkums</h6>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Kopejie ienakumi</span>
+                    <span class="fw-semibold text-success" th:text="'EUR ' + ${#numbers.formatDecimal(yearIncome,1,2)}">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Kopejie izdevumi</span>
+                    <span class="fw-semibold text-danger" th:text="'EUR ' + ${#numbers.formatDecimal(yearExpense,1,2)}">-</span>
+                </div>
+                <hr class="my-2"/>
+                <div class="d-flex justify-content-between">
+                    <span class="fw-semibold">Pelna</span>
+                    <span class="fw-bold"
+                          th:classappend="${yearIncome - yearExpense >= 0} ? 'text-success' : 'text-danger'"
+                          th:text="'EUR ' + ${#numbers.formatDecimal(yearIncome - yearExpense,1,2)}">-</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="fw-semibold mb-3">Gaidosas EDS iesniegsanas</h6>
+                <p th:if="${#lists.isEmpty(pendingSubmissions)}" class="text-muted small mb-0">
+                    Nav neviena gaidosa dokumenta
+                </p>
+                <div th:each="sub : ${pendingSubmissions}" class="d-flex justify-content-between align-items-center mb-2">
+                    <span th:text="${sub.documentType} + ' ' + ${sub.periodYear} + '/' + ${sub.periodMonth}">-</span>
+                    <a th:href="@{/eds/submit(id=${sub.id})}" class="btn btn-sm btn-warning">Iesniegt EDS</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/webjars/htmx.org/dist/htmx.min.js}"></script>
+</body>
+</html>

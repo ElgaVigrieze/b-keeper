@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Piegādātāji – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('suppliers')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <div>
+            <h5 class="mb-0 fw-semibold">Piegādātāju datubāze</h5>
+            <small class="text-muted">Izmanto AI rēķinu atpazīšanai — piegādātāja dati tiek ielādēti automātiski</small>
+        </div>
+        <a th:href="@{/suppliers/new}" class="btn btn-primary btn-sm">+ Jauns piegādātājs</a>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+
+    <div class="alert alert-info small mb-3">
+        <strong>Kā tas darbojas:</strong> Kad augšupielādējat rēķinu, AI izvelk piegādātāja nosaukumu un PVN numuru.
+        Ja tie atbilst šeit reģistrētam piegādātājam, visi piegādātāja dati tiek ielādēti no datubāzes —
+        nevis no OCR. Tas novērš iespējamās kļūdas. Jums jāpārbauda tikai summas.
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Nosaukums</th><th>PVN nr.</th><th>Valsts</th>
+                <th>PVN rinda</th><th>Kategorija</th><th>Aliases</th><th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(suppliers)}">
+                <td colspan="7" class="text-center text-muted py-4">
+                    Nav piegādātāju. <a th:href="@{/suppliers/new}">Pievienojiet pirmo</a>.
+                </td>
+            </tr>
+            <tr th:each="s : ${suppliers}">
+                <td class="fw-semibold" th:text="${s.name}">-</td>
+                <td><code th:text="${s.vatNumber}">-</code></td>
+                <td><span class="badge bg-light text-dark" th:text="${s.country}">LV</span></td>
+                <td th:text="${s.defaultPvnLine}">62</td>
+                <td><span class="badge bg-secondary" th:text="${s.defaultCategory}">-</span></td>
+                <td><small class="text-muted" th:text="${s.aliases}">-</small></td>
+                <td class="text-end">
+                    <a th:href="@{/suppliers/{id}/edit(id=${s.id})}" class="btn btn-sm btn-outline-secondary">Labot</a>
+                    <form th:action="@{/suppliers/{id}/delete(id=${s.id})}" method="post" class="d-inline"
+                          onsubmit="return confirm('Dzēst šo piegādātāju?')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Dzēst</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body></html>

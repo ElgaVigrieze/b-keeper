@@ -1,0 +1,141 @@
+﻿<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${pageTitle != null ? pageTitle + ' – B-Keeper' : 'B-Keeper'}">B-Keeper</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+    <style>
+        :root {
+            --bk-sidebar-width: 220px;
+            --bk-accent: #2563eb;
+        }
+        body { background: #f8fafc; font-size: 0.9rem; }
+        .bk-sidebar {
+            width: var(--bk-sidebar-width);
+            min-height: 100vh;
+            background: #1e293b;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 100;
+        }
+        .bk-sidebar .brand {
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.2rem;
+            padding: 1.25rem 1.25rem 0.75rem;
+            letter-spacing: 0.05em;
+        }
+        .bk-sidebar .brand span { color: #60a5fa; }
+        .bk-sidebar .nav-link {
+            color: #94a3b8;
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.375rem;
+            margin: 0.1rem 0.5rem;
+        }
+        .bk-sidebar .nav-link:hover,
+        .bk-sidebar .nav-link.active {
+            color: #f1f5f9;
+            background: #334155;
+        }
+        .bk-sidebar .nav-section {
+            color: #475569;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0.75rem 1.25rem 0.25rem;
+        }
+        .bk-main { margin-left: var(--bk-sidebar-width); padding: 1.5rem; }
+        .bk-topbar {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.75rem 1.5rem;
+            margin: -1.5rem -1.5rem 1.5rem;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+        }
+        .stat-card .label { color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 600; color: #0f172a; }
+        .stat-card .value.danger { color: #dc2626; }
+        .stat-card .value.success { color: #16a34a; }
+        .badge-status-DRAFT     { background: #e2e8f0; color: #475569; }
+        .badge-status-ISSUED    { background: #dbeafe; color: #1d4ed8; }
+        .badge-status-PAID      { background: #dcfce7; color: #15803d; }
+        .badge-status-OVERDUE   { background: #fee2e2; color: #b91c1c; }
+        .badge-status-CANCELLED { background: #f1f5f9; color: #94a3b8; }
+        .badge-status-READY     { background: #fef9c3; color: #854d0e; }
+        .badge-status-SUBMITTED { background: #dbeafe; color: #1d4ed8; }
+        .badge-status-ACCEPTED  { background: #dcfce7; color: #15803d; }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="bk-sidebar d-flex flex-column">
+    <div class="brand">B-<span>Keeper</span></div>
+
+    <div class="nav-section mt-2">Pārskats</div>
+    <a th:href="@{/}" class="nav-link" th:classappend="${currentPage == 'dashboard'} ? 'active'">
+        📊 Panelis
+    </a>
+
+    <div class="nav-section">Ieņēmumi</div>
+    <a th:href="@{/invoices/out}" class="nav-link" th:classappend="${currentPage == 'invoices-out'} ? 'active'">
+        🧾 Izejošie rēķini
+    </a>
+
+    <div class="nav-section">Izdevumi</div>
+    <a th:href="@{/invoices/in}" class="nav-link" th:classappend="${currentPage == 'invoices-in'} ? 'active'">
+        📥 Ienākošie rēķini
+    </a>
+    <a th:href="@{/assets}" class="nav-link" th:classappend="${currentPage == 'assets'} ? 'active'">
+        🖥 Pamatlīdzekļi
+    </a>
+
+    <div class="nav-section">Algas</div>
+    <a th:href="@{/employees}" class="nav-link" th:classappend="${currentPage == 'employees'} ? 'active'">
+        👤 Darbinieki
+    </a>
+    <a th:href="@{/payroll}" class="nav-link" th:classappend="${currentPage == 'payroll'} ? 'active'">
+        💰 Algu aprēķins
+    </a>
+
+    <div class="nav-section">Grāmatvedība</div>
+    <a th:href="@{/journal}" class="nav-link" th:classappend="${currentPage == 'journal'} ? 'active'">
+        📖 I/I žurnāls
+    </a>
+
+    <div class="nav-section">EDS</div>
+    <a th:href="@{/eds/pvn}" class="nav-link" th:classappend="${currentPage == 'eds-pvn'} ? 'active'">
+        📋 PVN deklarācija
+    </a>
+    <a th:href="@{/eds/ddz}" class="nav-link" th:classappend="${currentPage == 'eds-ddz'} ? 'active'">
+        📋 Darba dev. ziņ.
+    </a>
+    <a th:href="@{/eds/annual}" class="nav-link" th:classappend="${currentPage == 'eds-annual'} ? 'active'">
+        📋 Gada pārskats
+    </a>
+
+    <div class="mt-auto mb-3">
+        <div class="nav-section">Sistēma</div>
+        <a th:href="@{/settings}" class="nav-link" th:classappend="${currentPage == 'settings'} ? 'active'">
+            ⚙️ Iestatījumi
+        </a>
+    </div>
+</nav>
+
+<!-- Main content -->
+<main class="bk-main">
+    <div th:replace="${content}">
+        <!-- page content injected here -->
+    </div>
+</main>
+
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/webjars/htmx.org/dist/htmx.min.js}"></script>
+</body>
+</html>

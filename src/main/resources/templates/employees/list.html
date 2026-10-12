@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Darbinieki – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('employees')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <h5 class="mb-0 fw-semibold">Darbinieki</h5>
+        <a th:href="@{/employees/new}" class="btn btn-primary btn-sm">+ Jauns darbinieks</a>
+    </div>
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div class="card border-0 shadow-sm">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+            <tr><th>Personas kods</th><th>Vārds Uzvārds</th><th>Amats</th><th class="text-end">Bruto alga</th><th>Darba sākums</th><th>Statuss</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(employees)}">
+                <td colspan="7" class="text-center text-muted py-4">Nav darbinieku</td>
+            </tr>
+            <tr th:each="emp : ${employees}">
+                <td th:text="${emp.personalCode}">-</td>
+                <td th:text="${emp.firstName + ' ' + emp.lastName}">-</td>
+                <td th:text="${emp.position}">-</td>
+                <td class="text-end fw-semibold" th:text="'EUR ' + ${#numbers.formatDecimal(emp.monthlyGross,1,2)}">-</td>
+                <td th:text="${emp.employmentStart}">-</td>
+                <td><span th:class="${emp.active} ? 'badge bg-success' : 'badge bg-secondary'" th:text="${emp.active} ? 'Aktīvs' : 'Neaktīvs'">-</span></td>
+                <td><a th:href="@{/employees/{id}/edit(id=${emp.id})}" class="btn btn-sm btn-outline-secondary">Labot</a></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body></html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Piegādātājs – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('suppliers')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <h5 class="mb-0 fw-semibold" th:text="${supplier.id==null} ? 'Jauns piegādātājs' : 'Labot piegādātāju'">Piegādātājs</h5>
+        <a th:href="@{/suppliers}" class="btn btn-sm btn-outline-secondary">← Atpakaļ</a>
+    </div>
+
+    <div class="card border-0 shadow-sm p-4" style="max-width:650px">
+        <form th:action="@{/suppliers/save}" method="post" th:object="${supplier}">
+            <input type="hidden" th:field="*{id}"/>
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Nosaukums <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" th:field="*{name}" required placeholder="e.g. Neste Latvija SIA"/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Reģistrācijas numurs</label>
+                    <input type="text" class="form-control" th:field="*{regNumber}" placeholder="40003345778"/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">PVN reģ. numurs</label>
+                    <input type="text" class="form-control" th:field="*{vatNumber}" placeholder="LV40003345778"/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Valsts</label>
+                    <input type="text" class="form-control" th:field="*{country}" maxlength="2" placeholder="LV"/>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">PVN rinda</label>
+                    <select class="form-select" th:field="*{defaultPvnLine}">
+                        <option value="62">62 – Iekšzeme</option>
+                        <option value="55">55 – ES preces</option>
+                        <option value="54">54 – ES pakalpojumi</option>
+                        <option value="61">61 – Imports</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Dok. veids</label>
+                    <select class="form-select" th:field="*{defaultDocType}">
+                        <option value="A">A – Rēķins</option>
+                        <option value="G">G – ES preces</option>
+                        <option value="T">T – Telekom</option>
+                        <option value="N">N – Pakalpojumi</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">PVN likme</label>
+                    <select class="form-select" th:field="*{defaultVatRate}">
+                        <option value="21.0">21%</option>
+                        <option value="12.0">12%</option>
+                        <option value="5.0">5%</option>
+                        <option value="0.0">0%</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Kategorija</label>
+                    <select class="form-select" th:field="*{defaultCategory}">
+                        <option value="GENERAL">Vispārējs</option>
+                        <option value="IT">IT</option>
+                        <option value="FUEL">Degviela</option>
+                        <option value="RENT">Noma</option>
+                        <option value="SERVICES">Pakalpojumi</option>
+                        <option value="MATERIALS">Materiāli</option>
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex align-items-end pb-1">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" th:field="*{active}" id="active"/>
+                        <label class="form-check-label" for="active">Aktīvs</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Aliases (AI atpazīšanai)</label>
+                    <input type="text" class="form-control" th:field="*{aliases}"
+                           placeholder="Neste,Neste Latvia,Neste Latvija"/>
+                    <div class="form-text">
+                        Komats atdalīts saraksts ar nosaukumu variantiem, ko AI var atgriezt.
+                    </div>
+                </div>
+                <div class="col-12 d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-primary px-4">Saglabāt</button>
+                    <a th:href="@{/suppliers}" class="btn btn-outline-secondary">Atcelt</a>
+                    <form th:if="${supplier.id != null}"
+                          th:action="@{/suppliers/{id}/delete(id=${supplier.id})}"
+                          method="post" class="ms-auto"
+                          onsubmit="return confirm('Dzēst šo piegādātāju?')">
+                        <button type="submit" class="btn btn-danger">Dzēst</button>
+                    </form>
+                </div>
+            </div>
+        </form>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body></html>
