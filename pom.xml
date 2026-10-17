@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.5</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
@@ -18,9 +18,8 @@
     <description>Latvian bookkeeping application for small companies</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <sqlite.version>3.47.0.0</sqlite.version>
-        <webjars-locator.version>0.58</webjars-locator.version>
         <htmx.version>2.0.3</htmx.version>
         <bootstrap.version>5.3.3</bootstrap.version>
     </properties>
@@ -29,7 +28,7 @@
         <!-- Spring Boot Web (MVC + Thymeleaf) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -54,6 +53,11 @@
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>
+        <!-- Boot 4: Flyway auto-configuration lives in a separate module -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
 
         <!-- Validation -->
         <dependency>
@@ -75,11 +79,10 @@
             <version>${bootstrap.version}</version>
         </dependency>
 
-        <!-- WebJars Locator -->
+        <!-- WebJars Locator (lite — required by Spring Framework 7) -->
         <dependency>
             <groupId>org.webjars</groupId>
-            <artifactId>webjars-locator-core</artifactId>
-            <version>${webjars-locator.version}</version>
+            <artifactId>webjars-locator-lite</artifactId>
         </dependency>
 
         <!-- Lombok -->
@@ -114,6 +117,19 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- JDK 23+ requires annotation processors to be declared explicitly -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

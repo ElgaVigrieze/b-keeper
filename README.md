@@ -1,9 +1,9 @@
 # 📒 B-Keeper
 
-Bookkeeping application for small Latvian companies. Handles invoices, payroll, VAT declarations, and EDS (Electronic Declaration System) submissions.
+Bookkeeping application for small Latvian companies with a focus on EDS reporting automation. Handles invoices, payroll, VAT declarations.
 
-[![Java](https://img.shields.io/badge/Java-21-orange)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-brightgreen)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-25-orange)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen)](https://spring.io/projects/spring-boot)
 [![SQLite](https://img.shields.io/badge/SQLite-3.47-blue)](https://www.sqlite.org/)
 [![HTMX](https://img.shields.io/badge/HTMX-2.0-purple)](https://htmx.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
@@ -36,6 +36,7 @@ Small Latvian companies (SIA, IK) often struggle with bookkeeping:
 | **Fixed Assets** | Track equipment with depreciation calculations |
 | **Journal** | Automatic income/expense journal entries |
 | **Invoice OCR** | Extract data from PDF invoices using Tesseract + local LLM |
+| **Google Drive Import** | Bulk-import outgoing invoices from a Google Drive folder (AI-extracted drafts) |
 | **Offline-First** | SQLite database, works without internet |
 
 ---
@@ -66,7 +67,7 @@ Small Latvian companies (SIA, IK) often struggle with bookkeeping:
 
 | Layer | Technology | Why |
 |-------|------------|-----|
-| **Backend** | Spring Boot 3.3, Java 21 | Modern, reliable |
+| **Backend** | Spring Boot 4.1, Java 25 | Modern, reliable |
 | **Database** | SQLite + Spring Data JDBC | Portable, no server needed |
 | **Frontend** | Thymeleaf + HTMX + Bootstrap | Simple, no build step |
 | **Migrations** | Flyway | Version-controlled schema |
@@ -78,7 +79,7 @@ Small Latvian companies (SIA, IK) often struggle with bookkeeping:
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Java 21
+- Java 25
 - Maven 3.8+
 - (Optional) Tesseract OCR for scanned invoice extraction
 - (Optional) Ollama with mistral-nemo for smart invoice parsing
@@ -216,6 +217,7 @@ b-keeper/
 │   │       ├── EdsXmlService.java       # PVN/DDZ XML generation
 │   │       ├── EdsReportService.java    # Tax calculations
 │   │       ├── InvoiceOcrService.java   # PDF extraction
+│   │       ├── GoogleDriveService.java  # Drive import (service account)
 │   │       └── JournalService.java      # Auto journal entries
 │   └── resources/
 │       ├── application.properties
@@ -261,6 +263,39 @@ For automatic invoice data extraction:
    ollama pull mistral-nemo
    ```
 
+### Optional: Google Drive import (outgoing invoices)
+
+Import invoice PDFs straight from a Google Drive folder into outgoing invoices.
+Files are downloaded, stored locally, read with AI extraction and saved as
+**drafts** for review. Already-imported files are marked and skipped.
+
+#### One-time setup
+
+1. Open [console.cloud.google.com](https://console.cloud.google.com) and create a project (or pick an existing one).
+2. **APIs & Services → Library** → enable **Google Drive API**.
+3. **IAM & Admin → Service Accounts** → *Create service account* → open it →
+   **Keys → Add key → Create new key → JSON** → download the key file.
+4. Open B-Keeper → **Iestatījumi** (Settings):
+   - paste the JSON key (or upload the file),
+   - paste the link/ID of the Google Drive folder that contains the invoices,
+   - press **Saglabāt**, then **Pārbaudīt savienojumu**.
+5. In Google Drive, open that folder → **Share** → add the service account
+   email (shown in Settings) with **Viewer** access.
+
+#### Importing
+
+**Izejošie rēķini → ⤓ Importēt no Google Drive** → select files (PDF, JPG, PNG,
+WEBP, Google Docs or Google Sheets) → *Importēt atlasītos kā melnrakstus*.
+
+Each file becomes a **DRAFT** invoice: client, dates and amounts are filled from
+the AI extraction (where possible), the client is matched against the customer
+database, and the original document is stored under
+`~/bkeeper/documents/invoices-out/`. Review each draft and change its status to
+*Izrakstīts*/*Apmaksāts* when it checks out.
+
+> Without Ollama running, imports still work — drafts are created from the file
+> name and modification date, and you fill in the rest manually.
+
 ---
 
 ## 🧪 Workflow Example
@@ -272,7 +307,7 @@ For automatic invoice data extraction:
    - Classify VAT line (62 domestic, 55 EU)
 
 2. **Create outgoing invoices** → `/invoices/out`
-   - Issue invoices to clients
+   - Issue invoices to clients, or import them from Google Drive as drafts
    - Track payment status
 
 3. **Run payroll** → `/payroll`

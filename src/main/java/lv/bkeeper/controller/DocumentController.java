@@ -28,10 +28,13 @@ public class DocumentController {
     /**
      * Serves a stored invoice document for download/viewing.
      * Usage: /documents/view?path=2026/06/1234567890_invoice.pdf
+     *        /documents/view?path=2026/06/1234567890_invoice.pdf&dir=invoices-out
      */
     @GetMapping("/view")
-    public ResponseEntity<Resource> view(@RequestParam String path) throws IOException {
-        Path file = storageService.resolve(path);
+    public ResponseEntity<Resource> view(@RequestParam String path,
+                                         @RequestParam(defaultValue = DocumentStorageService.DIR_IN) String dir)
+            throws IOException {
+        Path file = storageService.resolve(dir, path);
 
         if (!Files.exists(file)) {
             return ResponseEntity.notFound().build();

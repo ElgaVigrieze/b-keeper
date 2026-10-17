@@ -26,6 +26,16 @@ body{background:#f8fafc;font-size:.9rem}
         <a th:href="@{/invoices/out}" class="btn btn-sm btn-outline-secondary">← Atpakaļ</a>
     </div>
 
+    <!-- ══ Stored document (e.g. imported from Google Drive) ══ -->
+    <div th:if="${invoice.pdfFilename != null and !#strings.isEmpty(invoice.pdfFilename)}"
+         class="alert alert-secondary d-flex align-items-center gap-3 mb-3" style="max-width:700px">
+        <span>📄 <strong>Pievienotais dokuments:</strong>
+            <span th:text="${invoice.pdfFilename}"></span>
+        </span>
+        <a th:href="@{/documents/view(path=${invoice.pdfFilename}, dir='invoices-out')}" target="_blank"
+           class="btn btn-sm btn-outline-primary ms-auto">Atvērt PDF</a>
+    </div>
+
     <!-- ══ CUSTOMER SELECTOR — separate form (never nest inside the main form) ══ -->
     <div class="card border-primary bg-light p-3 mb-3" style="max-width:700px"
          th:if="${customers != null and !#lists.isEmpty(customers)}">
@@ -41,6 +51,7 @@ body{background:#f8fafc;font-size:.9rem}
             <input type="hidden" name="status"        th:value="${invoice.status}"/>
             <input type="hidden" name="periodYear"    th:value="${invoice.periodYear}"/>
             <input type="hidden" name="periodMonth"   th:value="${invoice.periodMonth}"/>
+            <input type="hidden" name="pdfFilename"   th:value="${invoice.pdfFilename}"/>
 
             <label class="form-label fw-semibold text-primary mb-2">Atlasīt klientu no datubāzes</label>
             <div class="d-flex gap-2 align-items-end">
@@ -66,6 +77,7 @@ body{background:#f8fafc;font-size:.9rem}
     <div class="card border-0 shadow-sm p-4" style="max-width:700px">
         <form th:action="@{/invoices/out/save}" method="post" th:object="${invoice}">
             <input type="hidden" th:field="*{id}"/>
+            <input type="hidden" th:field="*{pdfFilename}"/>
             <div class="row g-3">
 
                 <div class="col-md-5">

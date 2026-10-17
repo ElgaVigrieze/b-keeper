@@ -1,7 +1,7 @@
 package lv.bkeeper.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -110,40 +110,82 @@ public class InvoiceOcrService {
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /** Extract incoming-invoice fields (supplier, purchase amounts). */
     public Map<String, String> extractFromFile(MultipartFile file) {
+        return extractFromFile(file, false);
+    }
+
+    /**
+     * Extract invoice fields from an uploaded file.
+     * @param outgoing true = outgoing invoice schema (client/recipient fields),
+     *                 false = incoming invoice schema (supplier fields)
+     */
+    public Map<String, String> extractFromFile(MultipartFile file, boolean outgoing) {
         try {
-            String filename = Optional.ofNullable(file.getOriginalFilename())
+            return extractFromBytes(file.getBytes(), file.getOriginalFilename(), outgoing);
+        } catch (Exception e) {
+            log.error("Invoice OCR failed reading upload", e);
+            return Map.of();
+        }
+    }
+
+    public Map<String, String> extractFromPdf(MultipartFile file) {
+        return extractFromFile(file);
+    }
+
+    /**
+     * Extract invoice fields from raw bytes (e.g. a file downloaded from Google Drive).
+     */
+    public Map<String, String> extractFromBytes(byte[] data, String originalFilename, boolean outgoing) {
+        try {
+            String filename = Optional.ofNullable(originalFilename)
                     .map(String::toLowerCase).orElse("");
 
             String text = null;
 
             if (filename.endsWith(".pdf")) {
-                text = extractPdfText(file.getBytes());
+                text = extractPdfText(data);
                 if (text == null) {
                     log.info("PDF has no embedded text — trying Tesseract");
-                    text = ocrWithTesseract(file);
+                    text = ocrWithTesseract(data, originalFilename);
                 }
             } else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")
                     || filename.endsWith(".png") || filename.endsWith(".webp")) {
                 log.info("Image file '{}' — running Tesseract OCR", filename);
-                text = ocrWithTesseract(file);
+                text = ocrWithTesseract(data, originalFilename);
             }
 
             if (text == null || text.isBlank()) {
-                log.info("No extractable text from '{}' — user will select supplier manually", filename);
+                log.info("No extractable text from '{}' — user will fill the form manually", filename);
                 return Map.of();
             }
 
-            log.info("Text ready ({} chars), sending to {}", text.length(), TEXT_MODEL);
-            Map<String, String> result = new HashMap<>(postProcess(callTextModel(text)));
+            // Deterministic template reader first (outgoing invoices): when the
+            // fixed layout is recognised, every field is read directly and the
+            // LLM step is skipped entirely (instant, repeatable, no AI needed).
+            Map<String, String> extracted = new LinkedHashMap<>();
+            if (outgoing) {
+                extracted.putAll(TemplateInvoiceParser.parseOutgoing(text));
+                if (TemplateInvoiceParser.hasCoreFields(extracted)) {
+                    log.info("Template parser: all core fields found ({} fields) — LLM skipped", extracted.size());
+                } else {
+                    log.info("Template parser: only {} fields, not complete — asking {}", extracted.size(), TEXT_MODEL);
+                    callTextModel(text, true).forEach(extracted::putIfAbsent);
+                }
+            } else {
+                extracted.putAll(callTextModel(text, false));
+            }
 
-            // Regex fallback for date if LLM missed it
-            String date = result.get("invoiceDate");
+            Map<String, String> result = new HashMap<>(postProcess(extracted, outgoing));
+
+            // Regex fallback for the main date if the LLM missed it
+            String dateKey = outgoing ? "issueDate" : "invoiceDate";
+            String date = result.get(dateKey);
             if (date == null || date.isBlank()) {
                 String found = findDateInText(text);
                 if (found != null) {
                     log.info("LLM missed date — fallback found: '{}'", found);
-                    result.put("invoiceDate", found);
+                    result.put(dateKey, found);
                 }
             }
 
@@ -153,10 +195,6 @@ public class InvoiceOcrService {
             log.error("Invoice OCR failed", e);
             return Map.of();
         }
-    }
-
-    public Map<String, String> extractFromPdf(MultipartFile file) {
-        return extractFromFile(file);
     }
 
     // ── PDF text extraction ───────────────────────────────────────────────────
@@ -176,13 +214,13 @@ public class InvoiceOcrService {
 
     // ── Tesseract OCR ─────────────────────────────────────────────────────────
 
-    private String ocrWithTesseract(MultipartFile file) {
+    private String ocrWithTesseract(byte[] data, String originalFilename) {
         File tmp = null;
         try {
-            String origName = Optional.ofNullable(file.getOriginalFilename()).orElse("file.jpg");
+            String origName = Optional.ofNullable(originalFilename).orElse("file.jpg");
             String ext = origName.contains(".") ? origName.substring(origName.lastIndexOf('.')) : ".jpg";
             tmp = File.createTempFile("bkeeper_ocr_", ext);
-            file.transferTo(tmp);
+            Files.write(tmp.toPath(), data);
 
             ProcessBuilder pb = new ProcessBuilder(
                     TESSERACT_PATH, tmp.getAbsolutePath(), "stdout",
@@ -215,11 +253,11 @@ public class InvoiceOcrService {
 
     // ── LLM call ─────────────────────────────────────────────────────────────
 
-    private Map<String, String> callTextModel(String text) {
+    private Map<String, String> callTextModel(String text, boolean outgoing) {
         try {
             Map<String, Object> body = new HashMap<>();
             body.put("model", TEXT_MODEL);
-            body.put("prompt", buildPrompt(text));
+            body.put("prompt", buildPrompt(text, outgoing));
             body.put("stream", false);
             body.put("format", "json");
 
@@ -238,7 +276,7 @@ public class InvoiceOcrService {
                 return Map.of();
             }
 
-            String response = objectMapper.readTree(resp.body()).path("response").asText();
+            String response = objectMapper.readTree(resp.body()).path("response").asString();
             log.info("Ollama response: {}", response);
             return parseJson(response);
 
@@ -248,33 +286,79 @@ public class InvoiceOcrService {
         }
     }
 
-    private String buildPrompt(String text) {
-        return "You are an invoice data extraction assistant. Extract data and return ONLY a JSON object. "
-                + "No markdown, no explanation — pure JSON only.\n\n"
-                + "RULES:\n"
-                + "- invoiceDate: find labels like 'Datums', 'Rēķina datums', 'Invoice date', 'Date', 'Datum', 'gada'. "
-                + "  Output MUST be YYYY-MM-DD. Examples: '20.08.2026'→'2026-08-20', "
-                + "  '2026. gada 6. augustā'→'2026-08-06'. NEVER leave empty if any date appears.\n"
-                + "- Numbers: dot as decimal separator (e.g. 5.21)\n"
-                + "- Empty string for missing fields\n\n"
-                + "{\n"
-                + "  \"invoiceNumber\":     \"\",\n"
-                + "  \"invoiceDate\":       \"YYYY-MM-DD\",\n"
-                + "  \"supplierName\":      \"\",\n"
-                + "  \"supplierVatNumber\": \"\",\n"
-                + "  \"supplierCountry\":   \"\",\n"
-                + "  \"amountExclVat\":     \"\",\n"
-                + "  \"vatRate\":           \"\",\n"
-                + "  \"vatAmount\":         \"\",\n"
-                + "  \"amountInclVat\":     \"\",\n"
-                + "  \"originalCurrency\":  \"\",\n"
-                + "  \"originalAmount\":    \"\",\n"
-                + "  \"description\":       \"\"\n"
-                + "}\n\n"
-                + "Invoice text:\n---\n"
+    private String buildPrompt(String text, boolean outgoing) {
+        String schema = outgoing ? OUTGOING_SCHEMA : INCOMING_SCHEMA;
+
+        String intro = outgoing
+                ? "You are an invoice data extraction assistant. The user's company ISSUED this invoice "
+                  + "to a client (outgoing invoice). Extract data and return ONLY a JSON object. "
+                  + "No markdown, no explanation — pure JSON only.\n\n"
+                  + "RULES:\n"
+                  + "- invoiceNumber: labels like 'Rēķins Nr.', 'Rēķina numurs', 'Nr.', "
+                  + "  'Invoice number'. Output only the number itself (e.g. 'VS26/01', not the label).\n"
+                  + "- issueDate: labels like 'Rēķina datums', 'Datums', 'Izrakstīšanas datums', "
+                  + "  'Invoice date', 'Date', 'Datum' — or the first date on the page, often "
+                  + "  right below the invoice number. Output MUST be YYYY-MM-DD.\n"
+                  + "  Examples: '20.08.2026'→'2026-08-20', '2026. gada 6. augustā'→'2026-08-06'.\n"
+                  + "- dueDate: labels like 'Apmaksas termiņš', 'Samaksas termiņš', 'Due date' "
+                  + "  (often prefixed with 'līdz'). YYYY-MM-DD, empty if not found. "
+                  + "  The due date is NEVER the issue date.\n"
+                  + "- clientName: the RECIPIENT of the invoice — labels 'Klients', 'Pircējs', "
+                  + "  'Saņēmējs', 'Pasūtītājs', 'Bill to', 'Invoice to'. "
+                  + "  'Izpildītājs' is the seller/issuer — NEVER the client.\n"
+                  + "- clientRegNumber / clientVatNumber: registration / VAT number from the "
+                  + "  client's section (after the client name / 'Pasūtītājs'), "
+                  + "  NOT the issuer's 'Reģistrācijas Nr.'.\n"
+                  + "- amountExclVat: pre-VAT total ('Cena'/'Summa'); vatRate: from 'PVN 21%' → '21'; "
+                  + "  vatAmount: the 'PVN' amount; amountInclVat: 'Kopā' (with VAT).\n"
+                  + "- description: the service/product description from the item table "
+                  + "  ('Nosaukums' column).\n"
+                  + "- Numbers: dot as decimal separator (e.g. 5.21). Strip currency symbols (€, EUR).\n"
+                  + "- Empty string for missing fields\n\n"
+                : "You are an invoice data extraction assistant. Extract data and return ONLY a JSON object. "
+                  + "No markdown, no explanation — pure JSON only.\n\n"
+                  + "RULES:\n"
+                  + "- invoiceDate: find labels like 'Datums', 'Rēķina datums', 'Invoice date', 'Date', 'Datum', 'gada'. "
+                  + "  Output MUST be YYYY-MM-DD. Examples: '20.08.2026'→'2026-08-20', "
+                  + "  '2026. gada 6. augustā'→'2026-08-06'. NEVER leave empty if any date appears.\n"
+                  + "- Numbers: dot as decimal separator (e.g. 5.21). Strip currency symbols (€, EUR).\n"
+                  + "- Empty string for missing fields\n\n";
+
+        return intro + schema + "\n\nInvoice text:\n---\n"
                 + text.substring(0, Math.min(text.length(), 3000))
                 + "\n---";
     }
+
+    private static final String INCOMING_SCHEMA =
+            "{\n"
+            + "  \"invoiceNumber\":     \"\",\n"
+            + "  \"invoiceDate\":       \"YYYY-MM-DD\",\n"
+            + "  \"supplierName\":      \"\",\n"
+            + "  \"supplierVatNumber\": \"\",\n"
+            + "  \"supplierCountry\":   \"\",\n"
+            + "  \"amountExclVat\":     \"\",\n"
+            + "  \"vatRate\":           \"\",\n"
+            + "  \"vatAmount\":         \"\",\n"
+            + "  \"amountInclVat\":     \"\",\n"
+            + "  \"originalCurrency\":  \"\",\n"
+            + "  \"originalAmount\":    \"\",\n"
+            + "  \"description\":       \"\"\n"
+            + "}";
+
+    private static final String OUTGOING_SCHEMA =
+            "{\n"
+            + "  \"invoiceNumber\":     \"\",\n"
+            + "  \"issueDate\":         \"YYYY-MM-DD\",\n"
+            + "  \"dueDate\":           \"\",\n"
+            + "  \"clientName\":        \"\",\n"
+            + "  \"clientRegNumber\":   \"\",\n"
+            + "  \"clientVatNumber\":   \"\",\n"
+            + "  \"amountExclVat\":     \"\",\n"
+            + "  \"vatRate\":           \"\",\n"
+            + "  \"vatAmount\":         \"\",\n"
+            + "  \"amountInclVat\":     \"\",\n"
+            + "  \"description\":       \"\"\n"
+            + "}";
 
     // ── Regex + Latvian date fallback ─────────────────────────────────────────
 
@@ -336,14 +420,20 @@ public class InvoiceOcrService {
 
     // ── Post-processing ───────────────────────────────────────────────────────
 
-    private Map<String, String> postProcess(Map<String, String> raw) {
+    private Map<String, String> postProcess(Map<String, String> raw, boolean outgoing) {
         Map<String, String> result = new HashMap<>(raw);
 
-        String date = result.get("invoiceDate");
-        if (date != null && !date.isBlank()) {
-            String norm = normaliseDate(date);
-            result.put("invoiceDate", norm);
-            if (!norm.equals(date)) log.info("Date normalised: '{}' → '{}'", date, norm);
+        // Normalise date fields
+        List<String> dateKeys = outgoing
+                ? List.of("issueDate", "dueDate")
+                : List.of("invoiceDate");
+        for (String key : dateKeys) {
+            String date = result.get(key);
+            if (date != null && !date.isBlank()) {
+                String norm = normaliseDate(date);
+                result.put(key, norm);
+                if (!norm.equals(date)) log.info("Date [{}] normalised: '{}' → '{}'", key, date, norm);
+            }
         }
 
         for (String key : List.of("amountExclVat", "vatRate", "vatAmount", "amountInclVat", "originalAmount")) {
@@ -413,7 +503,7 @@ public class InvoiceOcrService {
             if (start >= 0 && end > start) s = s.substring(start, end + 1);
             JsonNode node = objectMapper.readTree(s);
             Map<String, String> result = new HashMap<>();
-            node.fields().forEachRemaining(e -> result.put(e.getKey(), e.getValue().asText("")));
+            node.properties().forEach(e -> result.put(e.getKey(), e.getValue().asString("")));
             return result;
         } catch (Exception e) {
             log.error("JSON parse failed: {}", e.getMessage());

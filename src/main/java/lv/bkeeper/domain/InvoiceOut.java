@@ -68,6 +68,12 @@ public class InvoiceOut {
 
     private String status;           // DRAFT | ISSUED | PAID | OVERDUE | CANCELLED
 
+    /** Stored copy of the invoice document (relative path under documents/invoices-out/). */
+    private String pdfFilename;
+
+    /** Google Drive file id this invoice was imported from (null if not imported). */
+    private String driveFileId;
+
     private Long journalEntryId;
 
     private LocalDateTime createdAt;
