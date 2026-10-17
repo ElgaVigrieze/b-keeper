@@ -21,4 +21,10 @@ public interface InvoiceOutRepository extends CrudRepository<InvoiceOut, Long> {
     Double sumOutputVatByPeriod(@Param("year") int year, @Param("month") int month);
 
     List<InvoiceOut> findByStatus(String status);
+
+    @Query("SELECT DISTINCT drive_file_id FROM invoice_out WHERE drive_file_id IS NOT NULL")
+    List<String> findImportedDriveFileIds();
+
+    @Query("SELECT * FROM invoice_out WHERE drive_file_id IS NOT NULL")
+    List<InvoiceOut> findAllImported();
 }

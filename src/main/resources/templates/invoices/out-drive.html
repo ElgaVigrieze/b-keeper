@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="lv" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Google Drive imports – B-Keeper</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
+<style>
+:root{--sw:220px}
+body{background:#f8fafc;font-size:.9rem}
+.bk-sidebar{width:var(--sw);min-height:100vh;background:#1e293b;position:fixed;top:0;left:0;z-index:100;display:flex;flex-direction:column}
+.bk-sidebar .brand{color:#fff;font-weight:700;font-size:1.2rem;padding:1.25rem 1.25rem .75rem;letter-spacing:.05em}
+.bk-sidebar .brand span{color:#60a5fa}
+.nav-section{color:#475569;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.25rem .25rem}
+.bk-sidebar a{color:#94a3b8;padding:.5rem 1.25rem;border-radius:.375rem;margin:.1rem .5rem;text-decoration:none;display:block}
+.bk-sidebar a:hover,.bk-sidebar a.active{color:#f1f5f9;background:#334155}
+.bk-main{margin-left:var(--sw);padding:1.5rem}
+.bk-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.75rem 1.5rem;margin:-1.5rem -1.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+tr.imported{opacity:.55}
+</style>
+</head>
+<body>
+
+<nav th:replace="~{fragments/nav :: sidebar('invoices-out')}"></nav>
+
+<main class="bk-main">
+    <div class="bk-topbar">
+        <h5 class="mb-0 fw-semibold">Importēt no Google Drive</h5>
+        <a th:href="@{/invoices/out}" class="btn btn-sm btn-outline-secondary">← Izejošie rēķini</a>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success mb-3" th:text="${success}"></div>
+    <div th:if="${warning}" class="alert alert-warning mb-3" th:text="${warning}"></div>
+    <div th:if="${error}" class="alert alert-danger mb-3" th:text="${error}"></div>
+    <div th:if="${driveError}" class="alert alert-danger mb-3">
+        <strong>Google Drive kļūda:</strong> <span th:text="${driveError}"></span>
+    </div>
+
+    <!-- ══ Automatic check info ══ -->
+    <div th:if="${configured}" class="d-flex align-items-center flex-wrap gap-3 mb-3 small text-muted">
+        <span>⏱ Automātiskā pārbaude: reizi stundā (kamēr lietotne darbojas) — jaunie rēķini tiek importēti kā izrakstīti rēķini.</span>
+        <span th:if="${lastCheckAt != null}">
+            Pēdējā pārbaude: <span th:text="${lastCheckAt}"></span>
+            <span th:if="${lastCheckError}" class="text-danger">· kļūda</span>
+            <span th:unless="${lastCheckError}" th:text="'· jauni: ' + ${lastCheckCount}"></span>
+        </span>
+        <form th:action="@{/invoices/out/drive/check-now}" method="post" class="ms-auto mb-0">
+            <button type="submit" class="btn btn-sm btn-outline-primary">Pārbaudīt tagad</button>
+        </form>
+    </div>
+
+    <!-- ══ Not configured ══ -->
+    <div th:if="${!configured}" class="card border-0 shadow-sm p-4" style="max-width:720px">
+        <h6 class="fw-semibold">Google Drive vēl nav pievienots</h6>
+        <p class="text-muted mb-2" th:if="${!hasKey}">
+            Lai importētu rēķinus no Google Drive, nepieciešama Google servisa konta atslēga (JSON).
+            Pievienojiet to sadaļā <strong>Iestatījumi</strong>.
+        </p>
+        <p class="text-muted mb-2" th:if="${hasKey and #strings.isEmpty(folderId)}">
+            Servisa konta atslēga ir pievienota (<span th:text="${serviceAccountEmail}"></span>),
+            bet nav norādīta Google Drive mape. Norādiet mapes saiti sadaļā <strong>Iestatījumi</strong>.
+        </p>
+        <ol class="small text-muted mb-3">
+            <li>Izveidojiet servisa kontu Google Cloud konsolē un lejupielādējiet JSON atslēgu.</li>
+            <li>Pievienojiet atslēgu un mapes saiti → <a th:href="@{/settings}">Iestatījumi</a>.</li>
+            <li>Kopīgojiet Google Drive mapi ar servisa konta e-pastu (skatītāja tiesības ir pietiekamas).</li>
+        </ol>
+        <a th:href="@{/settings}" class="btn btn-primary btn-sm" style="width:fit-content">Atvērt iestatījumus</a>
+    </div>
+
+    <!-- ══ Files found in the configured Drive folder ══ -->
+    <div th:if="${configured and files != null}" class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+            <div>
+                <strong>Mapē atrastie rēķini</strong>
+                <span class="text-muted ms-2" th:text="${#lists.size(files)} + ' faili'"></span>
+                <span class="badge bg-primary ms-2" th:if="${newCount > 0}" th:text="${newCount} + ' jauni'"></span>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAll(true)">Atlasīt visus</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectAll(false)">Noņemt atlasi</button>
+            </div>
+        </div>
+
+        <form th:action="@{/invoices/out/drive/import}" method="post">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th style="width:36px"></th>
+                    <th>Nosaukums</th>
+                    <th>Tips</th>
+                    <th>Modificēts</th>
+                    <th>Izmērs</th>
+                    <th>Statuss</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(files)}">
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Mapē nav atrasts neviens importējams fails (PDF, attēls, Google Doc/Sheet)
+                    </td>
+                </tr>
+                <tr th:each="row : ${files}" th:classappend="${row.imported} ? 'imported' : ''">
+                    <td>
+                        <input type="checkbox" class="form-check-input file-check" name="fileId"
+                               th:value="${row.file.id}"
+                               th:disabled="${row.imported}"
+                               onchange="updateCount()"/>
+                    </td>
+                    <td th:text="${row.file.name}">-</td>
+                    <td><span class="badge bg-secondary" th:text="${row.file.typeLabel}">PDF</span></td>
+                    <td th:text="${row.file.modifiedDate}">-</td>
+                    <td th:text="${row.file.sizeLabel}">-</td>
+                    <td>
+                        <span th:if="${row.imported}" class="badge bg-success">Importēts</span>
+                        <span th:if="${row.refreshable}" class="badge bg-info"
+                              title="Jau importēts kā melnraksts. Importējot vēlreiz, melnraksts tiks aizvietots ar svaigiem datiem.">Melnraksts · var atjaunot</span>
+                        <span th:if="${!row.imported && !row.refreshable}" class="badge bg-light text-dark border">Jauns</span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <div class="card-body d-flex align-items-center gap-3"
+                 th:if="${!#lists.isEmpty(files)}">
+                <button type="submit" class="btn btn-primary" id="importBtn" disabled>
+                    Importēt atlasītos kā izrakstītus rēķinus
+                </button>
+                <span class="text-muted" id="selCount">Atlasīti: 0</span>
+                <span class="text-muted small ms-auto">
+                    Faili tiek saglabāti lokāli; dati tiek nolasīti automātiski un saglabāti kā izrakstīti rēķini. Jauni klienti tiek pievienoti sadaļai Klienti.
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <!-- ══ Result of the last import ══ -->
+    <div th:if="${importedInvoices != null and !#lists.isEmpty(importedInvoices)}"
+         class="card border-success border-2 mt-3" style="max-width:820px">
+        <div class="card-header bg-success-subtle">
+            <strong>Pēdējā importa rezultāts</strong> — pārbaudiet datus
+        </div>
+        <table class="table mb-0">
+            <thead class="table-light">
+            <tr><th>Nr.</th><th>Datums</th><th>Klients</th><th class="text-end">Kopā</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="inv : ${importedInvoices}">
+                <td th:text="${inv.invoiceNumber}">-</td>
+                <td th:text="${inv.issueDate}">-</td>
+                <td th:text="${inv.clientName}">-</td>
+                <td class="text-end" th:text="${#numbers.formatDecimal(inv.amountInclVat,1,2)}">-</td>
+                <td class="text-end">
+                    <a th:href="@{/invoices/out/{id}/edit(id=${inv.id})}" class="btn btn-sm btn-primary">Labot</a>
+                    <a th:if="${inv.pdfFilename != null and !#strings.isEmpty(inv.pdfFilename)}"
+                       th:href="@{/documents/view(path=${inv.pdfFilename}, dir='invoices-out')}"
+                       target="_blank" class="btn btn-sm btn-outline-secondary">PDF</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script>
+function updateCount() {
+    const boxes  = document.querySelectorAll('.file-check:not(:disabled)');
+    const chosen = document.querySelectorAll('.file-check:not(:disabled):checked');
+    document.getElementById('selCount').textContent = 'Atlasīti: ' + chosen.length;
+    document.getElementById('importBtn').disabled = chosen.length === 0;
+}
+function selectAll(state) {
+    document.querySelectorAll('.file-check:not(:disabled)').forEach(cb => cb.checked = state);
+    updateCount();
+}
+document.addEventListener('DOMContentLoaded', updateCount);
+</script>
+</body></html>

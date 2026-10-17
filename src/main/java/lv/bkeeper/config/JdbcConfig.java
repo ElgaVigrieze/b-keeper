@@ -1,16 +1,20 @@
 package lv.bkeeper.config;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
+import org.springframework.data.jdbc.core.dialect.JdbcDialect;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
 import org.springframework.data.relational.core.dialect.AnsiDialect;
 import org.springframework.data.relational.core.dialect.Dialect;
+import org.springframework.data.relational.core.dialect.LimitClause;
+import org.springframework.data.relational.core.dialect.LockClause;
+import org.springframework.data.relational.core.sql.render.SelectRenderContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
-import org.springframework.lang.NonNull;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,12 +27,38 @@ public class JdbcConfig extends AbstractJdbcConfiguration {
 
     /**
      * SQLite is not natively recognised by Spring Data JDBC.
-     * AnsiDialect covers all the SQL we use.
+     * ANSI semantics cover all the SQL we use.
      */
     @Override
     @Bean
-    public Dialect jdbcDialect(NamedParameterJdbcOperations operations) {
-        return AnsiDialect.INSTANCE;
+    public JdbcDialect jdbcDialect(NamedParameterJdbcOperations operations) {
+        return SqliteJdbcDialect.INSTANCE;
+    }
+
+    /**
+     * Minimal JdbcDialect for SQLite, delegating SQL rendering to ANSI defaults.
+     * Spring Data JDBC 4.x requires a JdbcDialect (not just a Dialect).
+     */
+    static final class SqliteJdbcDialect implements JdbcDialect {
+
+        static final SqliteJdbcDialect INSTANCE = new SqliteJdbcDialect();
+
+        private static final Dialect ANSI = AnsiDialect.INSTANCE;
+
+        @Override
+        public LockClause lock() {
+            return ANSI.lock();
+        }
+
+        @Override
+        public LimitClause limit() {
+            return ANSI.limit();
+        }
+
+        @Override
+        public SelectRenderContext getSelectContext() {
+            return ANSI.getSelectContext();
+        }
     }
 
     /**

@@ -31,11 +31,14 @@ body{background:#f8fafc;font-size:.9rem}
                     <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
                 </select>
             </form>
+            <a th:href="@{/invoices/out/drive}" class="btn btn-outline-primary btn-sm">⤓ Importēt no Google Drive</a>
             <a th:href="@{/invoices/out/new}" class="btn btn-primary btn-sm">+ Jauns rēķins</a>
         </div>
     </div>
 
     <div th:if="${success}" class="alert alert-success alert-dismissible" th:text="${success}"></div>
+
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
     <div class="card border-0 shadow-sm">
         <table class="table table-hover mb-0">

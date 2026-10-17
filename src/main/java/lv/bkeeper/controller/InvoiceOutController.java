@@ -85,6 +85,7 @@ public class InvoiceOutController {
             @RequestParam(required = false) String vatRate,
             @RequestParam(required = false) String description,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String pdfFilename,
             @RequestParam(required = false) Integer periodYear,
             @RequestParam(required = false) Integer periodMonth,
             Model model) {
@@ -99,6 +100,7 @@ public class InvoiceOutController {
         invoice.setId(id);
         invoice.setInvoiceNumber(invoiceNumber);
         if (status != null && !status.isBlank()) invoice.setStatus(status);
+        if (pdfFilename != null && !pdfFilename.isBlank()) invoice.setPdfFilename(pdfFilename);
 
         parseLocalDate(issueDate).ifPresent(d -> {
             invoice.setIssueDate(d);
@@ -226,5 +228,7 @@ public class InvoiceOutController {
         existing.setPeriodYear(s.getPeriodYear());
         existing.setPeriodMonth(s.getPeriodMonth());
         existing.setStatus(s.getStatus());
+        if (s.getPdfFilename() != null && !s.getPdfFilename().isBlank())
+            existing.setPdfFilename(s.getPdfFilename());
     }
 }
