@@ -114,18 +114,29 @@ public class EdsController {
         LocalDate now = LocalDate.now();
         int y = year != null ? year : now.getYear() - 1;
 
-        double yearIncome  = journalRepo.sumIncomeByYear(y);
-        double yearExpense = journalRepo.sumExpenseByYear(y);
-        double profit      = round(yearIncome - yearExpense);
+        EdsReportService.UinReport uin = reportService.uinReport(y);
 
         model.addAttribute("displayYear",  y);
-        model.addAttribute("yearIncome",   round(yearIncome));
-        model.addAttribute("yearExpense",  round(yearExpense));
-        model.addAttribute("profit",       profit);
+        model.addAttribute("yearIncome",   uin.totalIncome);
+        model.addAttribute("yearExpense",  uin.totalExpense);
+        model.addAttribute("profit",       uin.profitBeforeTax);
+        model.addAttribute("uin",          uin);
         model.addAttribute("submissions",  repo.findByPeriodYearOrderByPeriodMonth(y));
         model.addAttribute("currentPage",  "eds-uin");
         companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "eds/uin";
+    }
+
+    @GetMapping("/uin/xml")
+    public ResponseEntity<byte[]> uinXml(@RequestParam int year) {
+        Optional<Company> co = companyRepo.findById(1);
+        if (co.isEmpty()) return ResponseEntity.notFound().build();
+        String xml   = xmlService.generateUinXml(co.get(), year);
+        String fname = String.format("UIN_%d.xml", year);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fname + "\"")
+                .contentType(MediaType.APPLICATION_XML)
+                .body(xml.getBytes(StandardCharsets.UTF_8));
     }
 
     // ── Annual report ─────────────────────────────────────────────────────────
@@ -135,27 +146,32 @@ public class EdsController {
         LocalDate now = LocalDate.now();
         int y = year != null ? year : now.getYear() - 1;
 
-        double yearIncome  = journalRepo.sumIncomeByYear(y);
-        double yearExpense = journalRepo.sumExpenseByYear(y);
-
-        double[] monthlyIncome  = new double[13];
-        double[] monthlyExpense = new double[13];
-        for (int m = 1; m <= 12; m++) {
-            monthlyIncome[m]  = round(journalRepo.sumIncomeByPeriod(y, m));
-            monthlyExpense[m] = round(journalRepo.sumExpenseByPeriod(y, m));
-        }
+        EdsReportService.AnnualReport report = reportService.annualReport(y);
 
         model.addAttribute("displayYear",    y);
-        model.addAttribute("yearIncome",     round(yearIncome));
-        model.addAttribute("yearExpense",    round(yearExpense));
-        model.addAttribute("profit",         round(yearIncome - yearExpense));
-        model.addAttribute("monthlyIncome",  monthlyIncome);
-        model.addAttribute("monthlyExpense", monthlyExpense);
+        model.addAttribute("yearIncome",     report.netTurnover);
+        model.addAttribute("yearExpense",    report.costOfSales + report.personnelCostsTotal + report.depreciationExpense);
+        model.addAttribute("profit",         report.netProfit);
+        model.addAttribute("monthlyIncome",  report.monthlyIncome);
+        model.addAttribute("monthlyExpense", report.monthlyExpense);
+        model.addAttribute("report",         report);
         model.addAttribute("months",         DashboardController.MONTHS);
         model.addAttribute("submissions",    repo.findByPeriodYearOrderByPeriodMonth(y));
         model.addAttribute("currentPage",    "eds-annual");
         companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "eds/annual";
+    }
+
+    @GetMapping("/annual/xml")
+    public ResponseEntity<byte[]> annualXml(@RequestParam int year) {
+        Optional<Company> co = companyRepo.findById(1);
+        if (co.isEmpty()) return ResponseEntity.notFound().build();
+        String xml   = xmlService.generateAnnualReportXml(co.get(), year);
+        String fname = String.format("GadaParskats_%d.xml", year);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fname + "\"")
+                .contentType(MediaType.APPLICATION_XML)
+                .body(xml.getBytes(StandardCharsets.UTF_8));
     }
 
     private double round(double v) {

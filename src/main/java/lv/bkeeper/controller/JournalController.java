@@ -2,6 +2,7 @@ package lv.bkeeper.controller;
 
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.JournalEntryRepository;
+import lv.bkeeper.service.AssetDepreciationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,6 +17,7 @@ public class JournalController {
 
     private final JournalEntryRepository repo;
     private final CompanyRepository companyRepo;
+    private final AssetDepreciationService depreciationService;
 
     @GetMapping
     public String list(@RequestParam(required = false) Integer year,
@@ -24,6 +26,9 @@ public class JournalController {
         LocalDate now = LocalDate.now();
         int y = year  != null ? year  : now.getYear();
         int m = month != null ? month : now.getMonthValue();
+
+        // Ensure depreciation is posted for this period before displaying
+        depreciationService.ensureDepreciationPosted(y, m);
 
         var entries = repo.findByPeriodYearAndPeriodMonthOrderByEntryDate(y, m);
         double totalIncome  = entries.stream().mapToDouble(e -> e.getIncomeAmount()  != null ? e.getIncomeAmount()  : 0).sum();

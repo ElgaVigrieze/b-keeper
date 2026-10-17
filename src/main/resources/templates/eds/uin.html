@@ -31,18 +31,30 @@ body{background:#f8fafc;font-size:.9rem}
             <h5 class="mb-0 fw-semibold">Uzņēmuma ienākuma nodokļa deklarācija (UIN)</h5>
             <small class="text-muted">Iesniedzama reizi gadā — taksācijas mēnesis: Decembris</small>
         </div>
-        <form method="get" class="d-flex gap-2 align-items-center">
-            <label class="text-muted small me-1">Pārskata gads:</label>
-            <select name="year" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
-                <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
-            </select>
-        </form>
+        <div class="d-flex gap-2 align-items-center">
+            <form method="get" class="d-flex gap-2 align-items-center">
+                <label class="text-muted small me-1">Pārskata gads:</label>
+                <select name="year" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
+                    <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
+                </select>
+            </form>
+            <a th:href="@{/eds/uin/xml(year=${displayYear})}"
+               class="btn btn-success btn-sm">⬇ Lejupielādēt XML</a>
+        </div>
     </div>
 
     <div class="alert alert-info mb-4">
         <strong>UIN Latvijā (SIA ar jauno modeli):</strong>
         Nodoklis 20% tiek aprēķināts tikai no <em>sadalītās peļņas</em> (dividendēm).
         Ja peļņa netiek sadalīta, UIN = 0. Lielākajā daļā mazo SIA šī deklarācija ir 0.
+    </div>
+
+    <div class="alert alert-light border small mb-4">
+        <strong>Kā iesniegt:</strong>
+        1. Lejupielādējiet XML failu. &nbsp;
+        2. Atveriet <a href="https://eds.vid.gov.lv" target="_blank">eds.vid.gov.lv</a>. &nbsp;
+        3. Faili → Augšupielādēt XML → izvēlieties lejupielādēto failu. &nbsp;
+        4. Pārbaudiet un iesniedziet.
     </div>
 
     <div class="row g-4">

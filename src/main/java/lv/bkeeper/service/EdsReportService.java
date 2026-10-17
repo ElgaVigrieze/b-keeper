@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -19,14 +20,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EdsReportService {
 
-    private final InvoiceOutRepository    invoiceOutRepo;
-    private final InvoiceInRepository     invoiceInRepo;
-    private final PayrollEntryRepository  payrollRepo;
-    private final EmployeeRepository      employeeRepo;
+    private final InvoiceOutRepository       invoiceOutRepo;
+    private final InvoiceInRepository        invoiceInRepo;
+    private final PayrollEntryRepository     payrollRepo;
+    private final EmployeeRepository         employeeRepo;
+    private final JournalEntryRepository     journalRepo;
+    private final FixedAssetRepository       assetRepo;
+    private final AssetDepreciationService   depreciationService;
 
     // ── PVN (monthly) ────────────────────────────────────────────────────────
 
     public PvnReport pvnReport(int year, int month) {
+        // Ensure depreciation is posted for this period before calculating
+        depreciationService.ensureDepreciationPosted(year, month);
+
         List<InvoiceOut> outInvoices = invoiceOutRepo.findActiveByPeriod(year, month);
         List<InvoiceIn>  inInvoices  = invoiceInRepo.findByPeriod(year, month);
 
@@ -91,6 +98,9 @@ public class EdsReportService {
     // ── DDZ (monthly) ─────────────────────────────────────────────────────────
 
     public DdzReport ddzReport(int year, int month) {
+        // Ensure depreciation is posted for this period before calculating
+        depreciationService.ensureDepreciationPosted(year, month);
+
         List<PayrollEntry> entries   = payrollRepo.findByPeriodYearAndPeriodMonth(year, month);
         List<Employee>     employees = employeeRepo.findAllOrderByName();
 
@@ -146,6 +156,135 @@ public class EdsReportService {
         return BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
+    // ── UIN (annual corporate income tax) ─────────────────────────────────────
+
+    /**
+     * UIN deklarācija data for a given year.
+     * Under the new Latvian model, CIT is only on distributed profits (dividends).
+     * Most small companies have UIN = 0.
+     */
+    public UinReport uinReport(int year) {
+        // Ensure depreciation is posted for the entire year before calculating
+        depreciationService.ensureDepreciationPostedForYear(year);
+
+        UinReport r = new UinReport();
+        r.year = year;
+
+        // Financial results from journal
+        r.totalIncome  = round(d(journalRepo.sumIncomeByYear(year)));
+        r.totalExpense = round(d(journalRepo.sumExpenseByYear(year)));
+        r.profitBeforeTax = round(r.totalIncome - r.totalExpense);
+
+        // Payroll totals (for info)
+        r.totalGrossSalaries = round(d(payrollRepo.sumGrossByYear(year)));
+        r.totalVsaoiEmployer = round(d(payrollRepo.sumVsaoiEmployerByYear(year)));
+        r.totalRiskDuty      = round(d(payrollRepo.sumRiskDutyByYear(year)));
+
+        // UIN calculation (simplified — assumes no dividends distributed)
+        // Under LV law 4.pants 2.daļa, UIN base = dividends / 0.8, tax = 20%
+        r.dividendsDistributed = 0.0;   // TODO: add dividend tracking if needed
+        r.nonBusinessExpenses  = 0.0;   // TODO: track if needed
+        r.loansToRelatedParties = 0.0;  // TODO: track if needed
+
+        r.line5DeemedDividends = r.dividendsDistributed;
+        r.line6DeemedProfit    = r.nonBusinessExpenses + r.loansToRelatedParties;
+        r.line7TaxBase         = round((r.line5DeemedDividends + r.line6DeemedProfit) / 0.8);
+        r.line22AdjustedBase   = r.line7TaxBase;  // no deductions in simple case
+        r.line23Tax            = round(r.line22AdjustedBase * 0.20);
+        r.line29TotalTax       = r.line23Tax;
+        r.line32AnnualResult   = r.line29TotalTax;
+
+        return r;
+    }
+
+    // ── Gada Pārskats (annual financial report) ───────────────────────────────
+
+    /**
+     * Simplified annual report (vienkāršots gada pārskats) for small companies.
+     * Includes income statement and simplified balance sheet.
+     */
+    public AnnualReport annualReport(int year) {
+        // Ensure depreciation is posted for the entire year before calculating
+        depreciationService.ensureDepreciationPostedForYear(year);
+
+        AnnualReport r = new AnnualReport();
+        r.year = year;
+
+        // ── Income Statement (Peļņas vai zaudējumu aprēķins) ──
+
+        // Revenue = income from invoices
+        r.netTurnover = round(d(journalRepo.sumIncomeByYearAndType(year, "INCOME_INVOICE")));
+
+        // Cost of goods/services (simplified: all invoice expenses)
+        r.costOfSales = round(d(journalRepo.sumExpenseByYearAndType(year, "EXPENSE_INVOICE")));
+
+        r.grossProfit = round(r.netTurnover - r.costOfSales);
+
+        // Personnel costs from payroll
+        r.personnelCostsGross   = round(d(payrollRepo.sumGrossByYear(year)));
+        r.personnelCostsSocial  = round(d(payrollRepo.sumVsaoiEmployerByYear(year)) + d(payrollRepo.sumRiskDutyByYear(year)));
+        r.personnelCostsTotal   = round(r.personnelCostsGross + r.personnelCostsSocial);
+
+        // Depreciation - use actual posted depreciation from journal
+        r.depreciationExpense = round(d(journalRepo.sumExpenseByYearAndType(year, "ASSET_DEPRECIATION")));
+
+        // Other operating expenses (could be expanded)
+        r.otherOperatingExpense = 0.0;
+
+        // Operating profit
+        r.operatingProfit = round(r.grossProfit - r.personnelCostsTotal - r.depreciationExpense - r.otherOperatingExpense);
+
+        // Financial income/expense (simplified: none)
+        r.financialIncome  = 0.0;
+        r.financialExpense = 0.0;
+
+        // Profit before tax
+        r.profitBeforeTax = round(r.operatingProfit + r.financialIncome - r.financialExpense);
+
+        // Corporate income tax (UIN)
+        UinReport uin = uinReport(year);
+        r.corporateIncomeTax = uin.line32AnnualResult;
+
+        // Net profit
+        r.netProfit = round(r.profitBeforeTax - r.corporateIncomeTax);
+
+        // ── Balance Sheet (simplified) ──
+
+        // Fixed assets
+        r.fixedAssetsGross       = round(d(assetRepo.sumAcquisitionCostActive()));
+        r.fixedAssetsDepreciation = round(d(assetRepo.sumAccumulatedDepreciationActive()));
+        r.fixedAssetsNet         = round(d(assetRepo.sumBookValueActive()));
+
+        // Current assets (simplified — would need bank/cash tracking for accuracy)
+        r.receivables = 0.0;  // TODO: sum unpaid outgoing invoices
+        r.cashAndBank = 0.0;  // TODO: needs bank account tracking
+        r.currentAssetsTotal = round(r.receivables + r.cashAndBank);
+
+        r.totalAssets = round(r.fixedAssetsNet + r.currentAssetsTotal);
+
+        // Equity (simplified)
+        r.shareCapital   = 2800.0;  // default SIA minimum, should come from company settings
+        r.retainedEarnings = r.netProfit;
+        r.equityTotal    = round(r.shareCapital + r.retainedEarnings);
+
+        // Liabilities
+        r.payables = 0.0;  // TODO: sum unpaid incoming invoices
+        r.taxLiabilities = 0.0;  // could compute from DDZ
+        r.liabilitiesTotal = round(r.payables + r.taxLiabilities);
+
+        r.totalEquityAndLiabilities = round(r.equityTotal + r.liabilitiesTotal);
+
+        // Monthly breakdown for display
+        r.monthlyIncome  = new double[13];
+        r.monthlyExpense = new double[13];
+        for (int m = 1; m <= 12; m++) {
+            r.monthlyIncome[m]  = round(d(journalRepo.sumIncomeByPeriod(year, m)));
+            r.monthlyExpense[m] = round(d(journalRepo.sumExpenseByPeriod(year, m)));
+        }
+
+        return r;
+    }
+
     // ── Data classes ──────────────────────────────────────────────────────────
 
     public static class PvnReport {
@@ -193,5 +332,87 @@ public class EdsReportService {
             public double solidarityTax;
             public double netSalary;
         }
+    }
+
+    // ── UIN Report ────────────────────────────────────────────────────────────
+
+    public static class UinReport {
+        public int year;
+
+        // Financial results from journal
+        public double totalIncome;
+        public double totalExpense;
+        public double profitBeforeTax;
+
+        // Payroll summary
+        public double totalGrossSalaries;
+        public double totalVsaoiEmployer;
+        public double totalRiskDuty;
+
+        // UIN calculation inputs
+        public double dividendsDistributed;
+        public double nonBusinessExpenses;
+        public double loansToRelatedParties;
+
+        // UIN form lines
+        public double line5DeemedDividends;    // 4.p. 2.d. 1.p.
+        public double line6DeemedProfit;       // nosacīti sadalītā peļņa
+        public double line7TaxBase;            // (5+6)/0.8
+        public double line22AdjustedBase;      // after deductions
+        public double line23Tax;               // 22 × 20%
+        public double line29TotalTax;          // nodokļa kopsumma
+        public double line32AnnualResult;      // gada rezultāts
+    }
+
+    // ── Annual Report ─────────────────────────────────────────────────────────
+
+    public static class AnnualReport {
+        public int year;
+
+        // Income Statement (Peļņas vai zaudējumu aprēķins)
+        public double netTurnover;            // neto apgrozījums
+        public double costOfSales;            // pārdotās produkcijas ražošanas izmaksas
+        public double grossProfit;            // bruto peļņa
+
+        public double personnelCostsGross;    // personāla izmaksas - algas
+        public double personnelCostsSocial;   // personāla izmaksas - soc. apdr.
+        public double personnelCostsTotal;    // personāla izmaksas kopā
+
+        public double depreciationExpense;    // nolietojums
+        public double otherOperatingExpense;  // pārējās saimnieciskās darbības izmaksas
+
+        public double operatingProfit;        // peļņa no pamatdarbības
+        public double financialIncome;        // finanšu ieņēmumi
+        public double financialExpense;       // finanšu izmaksas
+
+        public double profitBeforeTax;        // peļņa pirms nodokļiem
+        public double corporateIncomeTax;     // UIN
+        public double netProfit;              // tīrā peļņa
+
+        // Balance Sheet (Bilance) - Assets
+        public double fixedAssetsGross;       // pamatlīdzekļi sākotnējā vērtība
+        public double fixedAssetsDepreciation; // uzkrātais nolietojums
+        public double fixedAssetsNet;         // pamatlīdzekļi atlikusī vērtība
+
+        public double receivables;            // debitori
+        public double cashAndBank;            // nauda un bankas konti
+        public double currentAssetsTotal;     // apgrozāmie līdzekļi kopā
+
+        public double totalAssets;            // aktīvi kopā
+
+        // Balance Sheet - Equity & Liabilities
+        public double shareCapital;           // pamatkapitāls
+        public double retainedEarnings;       // nesadalītā peļņa
+        public double equityTotal;            // pašu kapitāls kopā
+
+        public double payables;               // kreditori
+        public double taxLiabilities;         // nodokļu saistības
+        public double liabilitiesTotal;       // saistības kopā
+
+        public double totalEquityAndLiabilities;  // pasīvi kopā
+
+        // Monthly breakdown
+        public double[] monthlyIncome;
+        public double[] monthlyExpense;
     }
 }

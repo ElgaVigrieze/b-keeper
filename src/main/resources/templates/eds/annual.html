@@ -31,15 +31,30 @@ body{background:#f8fafc;font-size:.9rem}
             <h5 class="mb-0 fw-semibold">Gada pārskats</h5>
             <small class="text-muted">Ieņēmumu un izdevumu kopsavilkums no I/I žurnāla</small>
         </div>
-        <form method="get" class="d-flex gap-2 align-items-center">
-            <label class="text-muted small me-1">Gads:</label>
-            <select name="year" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
-                <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
-            </select>
-        </form>
+        <div class="d-flex gap-2 align-items-center">
+            <form method="get" class="d-flex gap-2 align-items-center">
+                <label class="text-muted small me-1">Gads:</label>
+                <select name="year" class="form-select form-select-sm" style="width:100px" onchange="this.form.submit()">
+                    <option th:each="y:${#numbers.sequence(2024,2030)}" th:value="${y}" th:selected="${y==displayYear}" th:text="${y}"></option>
+                </select>
+            </form>
+            <a th:href="@{/eds/annual/xml(year=${displayYear})}"
+               class="btn btn-success btn-sm">⬇ Lejupielādēt XML</a>
+        </div>
     </div>
 
     <div class="row g-3">
+        <!-- Submission instructions -->
+        <div class="col-12">
+            <div class="alert alert-light border small mb-0">
+                <strong>Kā iesniegt:</strong>
+                1. Lejupielādējiet XML failu. &nbsp;
+                2. Atveriet <a href="https://eds.vid.gov.lv" target="_blank">eds.vid.gov.lv</a> vai <a href="https://lursoft.lv" target="_blank">Lursoft</a>. &nbsp;
+                3. Augšupielādējiet XML vai aizpildiet manuāli. &nbsp;
+                4. Pārbaudiet un iesniedziet.
+            </div>
+        </div>
+
         <!-- Summary cards -->
         <div class="col-md-4">
             <div class="gp-section text-center">
