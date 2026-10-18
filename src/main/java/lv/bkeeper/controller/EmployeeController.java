@@ -1,54 +1,41 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.Employee;
-import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
 
 @Controller
 @RequestMapping("/employees")
 @RequiredArgsConstructor
-public class EmployeeController {
+public class EmployeeController extends BaseCrudController <Employee, EmployeeRepository> {
 
     private final EmployeeRepository repo;
-    private final CompanyRepository companyRepo;
 
-    @GetMapping
-    public String list(Model model) {
-        model.addAttribute("employees",   repo.findAll());
-        model.addAttribute("currentPage", "employees");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
-        return "employees/list";
+    @Override
+    protected EmployeeRepository getRepo() {
+        return repo;
     }
 
-    @GetMapping("/new")
-    public String newForm(Model model) {
-        model.addAttribute("employee", Employee.builder()
+    @Override
+    protected String getEntityName() {
+        return "employee";
+    }
+
+    @Override
+    protected Employee createDefaultEntityForm() {
+        return Employee.builder()
                 .active(true)
                 .nonTaxableMin(0.0)
                 .monthlyGross(0.0)
-                .build());
-        model.addAttribute("currentPage", "employees");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
-        return "employees/form";
+                .build();
     }
 
-    @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        repo.findById(id).ifPresent(e -> model.addAttribute("employee", e));
-        model.addAttribute("currentPage", "employees");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
-        return "employees/form";
-    }
-
-    @PostMapping("/save")
-    public String save(@ModelAttribute Employee submitted, RedirectAttributes ra) {
+    @Override
+    protected void saveEditedEntity(Employee submitted) {
         LocalDateTime now = LocalDateTime.now();
 
         if (submitted.getId() != null) {
@@ -73,8 +60,6 @@ public class EmployeeController {
             submitted.setUpdatedAt(now);
             repo.save(submitted);
         }
-
-        ra.addFlashAttribute("success", "Darbinieks saglabāts");
-        return "redirect:/employees";
     }
+
 }

@@ -1,53 +1,43 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.Customer;
-import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
 
 @Controller
 @RequestMapping("/customers")
 @RequiredArgsConstructor
-public class CustomerController {
+public class CustomerController extends BaseCrudController<Customer, CustomerRepository> {
 
     private final CustomerRepository repo;
-    private final CompanyRepository  companyRepo;
 
-    @GetMapping
-    public String list(Model model) {
-        model.addAttribute("customers",   repo.findByActiveTrueOrderByName());
-        model.addAttribute("currentPage", "customers");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
-        return "customers/list";
+    @Override
+    protected CustomerRepository getRepo() {
+        return repo;
     }
 
-    @GetMapping("/new")
-    public String newForm(Model model) {
-        model.addAttribute("customer", Customer.builder()
-                .active(true).country("LV")
-                .defaultPvnLine(41).defaultDocType("1")
-                .defaultVatRate(21.0).build());
-        model.addAttribute("currentPage", "customers");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
-        return "customers/form";
+    @Override
+    protected String getEntityName() {
+        return "customer";
     }
 
-    @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
-        repo.findById(id).ifPresent(c -> model.addAttribute("customer", c));
-        model.addAttribute("currentPage", "customers");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
-        return "customers/form";
+    @Override
+    protected Customer createDefaultEntityForm() {
+        return Customer.builder()
+                .active(true)
+                .country("LV")
+                .defaultPvnLine(41)
+                .defaultDocType("1")
+                .defaultVatRate(21.0)
+                .build();
     }
 
-    @PostMapping("/save")
-    public String save(@ModelAttribute Customer submitted, RedirectAttributes ra) {
+    @Override
+    protected void saveEditedEntity(Customer submitted) {
         LocalDateTime now = LocalDateTime.now();
         if (submitted.getId() != null) {
             repo.findById(submitted.getId()).ifPresent(existing -> {
@@ -71,14 +61,5 @@ public class CustomerController {
             submitted.setUpdatedAt(now);
             repo.save(submitted);
         }
-        ra.addFlashAttribute("success", "Klients saglabāts");
-        return "redirect:/customers";
-    }
-
-    @PostMapping("/{id}/delete")
-    public String delete(@PathVariable Long id, RedirectAttributes ra) {
-        repo.deleteById(id);
-        ra.addFlashAttribute("success", "Klients dzēsts");
-        return "redirect:/customers";
     }
 }

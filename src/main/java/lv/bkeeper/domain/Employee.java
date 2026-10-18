@@ -5,6 +5,8 @@ import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.format.annotation.DateTimeFormat;
 import lombok.Data;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -14,6 +16,8 @@ import java.time.LocalDateTime;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table("employee")
 public class Employee {
 
