@@ -31,4 +31,26 @@ public interface JournalEntryRepository extends CrudRepository<JournalEntry, Lon
     @Modifying
     @Query("DELETE FROM journal_entry WHERE invoice_in_id = :id")
     void deleteByInvoiceInId(@Param("id") Long invoiceInId);
+
+    // ── Annual aggregations by entry type ─────────────────────────────────────
+
+    @Query("SELECT COALESCE(SUM(income_amount), 0) FROM journal_entry WHERE period_year = :year AND entry_type = :type")
+    Double sumIncomeByYearAndType(@Param("year") int year, @Param("type") String type);
+
+    @Query("SELECT COALESCE(SUM(expense_amount), 0) FROM journal_entry WHERE period_year = :year AND entry_type = :type")
+    Double sumExpenseByYearAndType(@Param("year") int year, @Param("type") String type);
+
+    // ── Asset depreciation tracking ───────────────────────────────────────────
+
+    @Query("SELECT * FROM journal_entry WHERE asset_id = :assetId AND period_year = :year AND period_month = :month AND entry_type = 'ASSET_DEPRECIATION'")
+    List<JournalEntry> findDepreciationByAssetAndPeriod(@Param("assetId") Long assetId, 
+                                                         @Param("year") int year, 
+                                                         @Param("month") int month);
+
+    @Query("SELECT COALESCE(SUM(expense_amount), 0) FROM journal_entry WHERE asset_id = :assetId AND entry_type = 'ASSET_DEPRECIATION'")
+    Double sumDepreciationByAsset(@Param("assetId") Long assetId);
+
+    @Modifying
+    @Query("DELETE FROM journal_entry WHERE asset_id = :id AND entry_type = 'ASSET_DEPRECIATION'")
+    void deleteDepreciationByAssetId(@Param("id") Long assetId);
 }
