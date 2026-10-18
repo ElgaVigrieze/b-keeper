@@ -1,6 +1,7 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.FixedAsset;
+import lv.bkeeper.mapper.FixedAssetMapper;
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.FixedAssetRepository;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ class AssetControllerTest {
 
     @MockitoBean
     private CompanyRepository companyRepository;
+
+    @MockitoBean
+    private FixedAssetMapper assetMapper;
 
     @Test
     void list_shouldReturnAssetsList() throws Exception {
@@ -75,6 +79,9 @@ class AssetControllerTest {
 
     @Test
     void saveExisting_shouldSaveAndRedirect() throws Exception {
+        FixedAsset existing = FixedAsset.builder().id(1L).name("Old").build();
+        when(fixedAssetRepository.findById(1L)).thenReturn(Optional.of(existing));
+
         mockMvc.perform(post("/assets/save")
                         .param("id", "1")
                         .param("name", "Asset")

@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("customer")
-public class Customer {
+public class Customer implements Identifiable {
 
     @Id
     private Long id;

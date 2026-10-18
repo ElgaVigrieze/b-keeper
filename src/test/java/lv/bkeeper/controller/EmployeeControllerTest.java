@@ -1,6 +1,7 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.Employee;
+import lv.bkeeper.mapper.EmployeeMapper;
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.EmployeeRepository;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ class EmployeeControllerTest {
 
     @MockitoBean
     private CompanyRepository companyRepository;
+
+    @MockitoBean
+    private EmployeeMapper employeeMapper;
 
     @Test
     void list_shouldReturnEmployeesList() throws Exception {

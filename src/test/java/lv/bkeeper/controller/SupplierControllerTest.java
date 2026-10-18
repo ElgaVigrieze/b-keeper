@@ -1,6 +1,7 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.Supplier;
+import lv.bkeeper.mapper.SupplierMapper;
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.SupplierRepository;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ class SupplierControllerTest {
 
     @MockitoBean
     private CompanyRepository companyRepository;
+
+    @MockitoBean
+    private SupplierMapper supplierMapper;
 
     @Test
     void list_shouldReturnSuppliersList() throws Exception {

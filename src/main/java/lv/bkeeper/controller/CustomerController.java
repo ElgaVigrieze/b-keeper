@@ -1,8 +1,10 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.Customer;
+import lv.bkeeper.mapper.CustomerMapper;
 import lv.bkeeper.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
+import lv.bkeeper.util.TimeUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 public class CustomerController extends BaseCrudController<Customer, CustomerRepository> {
 
     private final CustomerRepository repo;
+    private final CustomerMapper customerMapper;
 
     @Override
     protected CustomerRepository getRepo() {
@@ -37,29 +40,20 @@ public class CustomerController extends BaseCrudController<Customer, CustomerRep
     }
 
     @Override
-    protected void saveEditedEntity(Customer submitted) {
-        LocalDateTime now = LocalDateTime.now();
-        if (submitted.getId() != null) {
-            repo.findById(submitted.getId()).ifPresent(existing -> {
-                existing.setName(submitted.getName());
-                existing.setRegNumber(submitted.getRegNumber());
-                existing.setVatNumber(submitted.getVatNumber());
-                existing.setCountry(submitted.getCountry());
-                existing.setAddress(submitted.getAddress());
-                existing.setEmail(submitted.getEmail());
-                existing.setPhone(submitted.getPhone());
-                existing.setDefaultPvnLine(submitted.getDefaultPvnLine());
-                existing.setDefaultDocType(submitted.getDefaultDocType());
-                existing.setDefaultVatRate(submitted.getDefaultVatRate());
-                existing.setNotes(submitted.getNotes());
-                existing.setActive(submitted.isActive());
-                existing.setUpdatedAt(now);
-                repo.save(existing);
-            });
-        } else {
-            submitted.setCreatedAt(now);
-            submitted.setUpdatedAt(now);
-            repo.save(submitted);
-        }
+    protected void saveExisting(Customer submitted) {
+        repo.findById(submitted.getId()).ifPresent(existing -> {
+            // Copy the form-posted fields onto the persisted row.
+            customerMapper.update(existing, submitted);
+            existing.setUpdatedAt(TimeUtil.getNow());
+            repo.save(existing);
+        });
+    }
+
+    @Override
+    protected void saveNew(Customer submitted) {
+        submitted.setCreatedAt(TimeUtil.getNow());
+        submitted.setUpdatedAt(TimeUtil.getNow());
+        repo.save(submitted);
+
     }
 }

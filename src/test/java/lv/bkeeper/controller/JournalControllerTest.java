@@ -2,6 +2,7 @@ package lv.bkeeper.controller;
 
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.JournalEntryRepository;
+import lv.bkeeper.service.AssetDepreciationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -26,6 +27,9 @@ class JournalControllerTest {
 
     @MockitoBean
     private CompanyRepository companyRepository;
+
+    @MockitoBean
+    private AssetDepreciationService assetDepreciationService;
 
     @Test
     void list_shouldReturnJournalList() throws Exception {

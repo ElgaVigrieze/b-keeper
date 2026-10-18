@@ -3,6 +3,7 @@ package lv.bkeeper.controller;
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.JournalEntryRepository;
 import lombok.RequiredArgsConstructor;
+import lv.bkeeper.service.AssetDepreciationService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +16,6 @@ import java.time.LocalDate;
 public class JournalController {
 
     private final JournalEntryRepository repo;
-    private final CompanyRepository companyRepo;
     private final AssetDepreciationService depreciationService;
 
     @GetMapping

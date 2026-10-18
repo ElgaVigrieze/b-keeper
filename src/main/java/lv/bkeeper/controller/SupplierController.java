@@ -1,8 +1,10 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.Supplier;
+import lv.bkeeper.mapper.SupplierMapper;
 import lv.bkeeper.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
+import lv.bkeeper.util.TimeUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 public class SupplierController extends BaseCrudController<Supplier, SupplierRepository> {
 
     private final SupplierRepository repo;
+    private final SupplierMapper supplierMapper;
 
     @Override
     protected SupplierRepository getRepo() {
@@ -34,27 +37,19 @@ public class SupplierController extends BaseCrudController<Supplier, SupplierRep
     }
 
     @Override
-    protected void saveEditedEntity(Supplier submitted) {
-        LocalDateTime now = LocalDateTime.now();
-        if (submitted.getId() != null) {
-            repo.findById(submitted.getId()).ifPresent(existing -> {
-                existing.setName(submitted.getName());
-                existing.setRegNumber(submitted.getRegNumber());
-                existing.setVatNumber(submitted.getVatNumber());
-                existing.setCountry(submitted.getCountry());
-                existing.setDefaultPvnLine(submitted.getDefaultPvnLine());
-                existing.setDefaultDocType(submitted.getDefaultDocType());
-                existing.setDefaultVatRate(submitted.getDefaultVatRate());
-                existing.setDefaultCategory(submitted.getDefaultCategory());
-                existing.setAliases(submitted.getAliases());
-                existing.setActive(submitted.isActive());
-                existing.setUpdatedAt(now);
-                repo.save(existing);
-            });
-        } else {
-            submitted.setCreatedAt(now);
-            submitted.setUpdatedAt(now);
-            repo.save(submitted);
-        }
+    protected void saveExisting(Supplier submitted) {
+        repo.findById(submitted.getId()).ifPresent(existing -> {
+            // Copy the form-posted fields onto the persisted row.
+            supplierMapper.update(existing, submitted);
+            existing.setUpdatedAt(TimeUtil.getNow());
+            repo.save(existing);
+        });
+    }
+
+    @Override
+    protected void saveNew(Supplier submitted) {
+        submitted.setCreatedAt(TimeUtil.getNow());
+        submitted.setUpdatedAt(TimeUtil.getNow());
+        repo.save(submitted);
     }
 }

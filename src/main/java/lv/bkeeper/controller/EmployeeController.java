@@ -1,8 +1,10 @@
 package lv.bkeeper.controller;
 
 import lv.bkeeper.domain.Employee;
+import lv.bkeeper.mapper.EmployeeMapper;
 import lv.bkeeper.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import lv.bkeeper.util.TimeUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 public class EmployeeController extends BaseCrudController <Employee, EmployeeRepository> {
 
     private final EmployeeRepository repo;
+    private final EmployeeMapper employeeMapper;
 
     @Override
     protected EmployeeRepository getRepo() {
@@ -35,31 +38,20 @@ public class EmployeeController extends BaseCrudController <Employee, EmployeeRe
     }
 
     @Override
-    protected void saveEditedEntity(Employee submitted) {
-        LocalDateTime now = LocalDateTime.now();
+    protected void saveExisting(Employee submitted) {
+        repo.findById(submitted.getId()).ifPresent(existing -> {
+            // Copy the form-posted fields onto the persisted row.
+            employeeMapper.update(existing, submitted);
+            existing.setUpdatedAt(TimeUtil.getNow());
+            repo.save(existing);
+        });
+    }
 
-        if (submitted.getId() != null) {
-            // Update: load existing to preserve createdAt
-            repo.findById(submitted.getId()).ifPresent(existing -> {
-                existing.setPersonalCode(submitted.getPersonalCode());
-                existing.setFirstName(submitted.getFirstName());
-                existing.setLastName(submitted.getLastName());
-                existing.setPosition(submitted.getPosition());
-                existing.setMonthlyGross(submitted.getMonthlyGross());
-                existing.setNonTaxableMin(submitted.getNonTaxableMin());
-                existing.setEmploymentStart(submitted.getEmploymentStart());
-                existing.setEmploymentEnd(submitted.getEmploymentEnd());
-                existing.setTaxBookSubmitted(submitted.isTaxBookSubmitted());
-                existing.setActive(submitted.isActive());
-                existing.setUpdatedAt(now);
-                repo.save(existing);
-            });
-        } else {
-            // Insert: set both timestamps
-            submitted.setCreatedAt(now);
-            submitted.setUpdatedAt(now);
-            repo.save(submitted);
-        }
+    @Override
+    protected void saveNew(Employee submitted) {
+        submitted.setCreatedAt(TimeUtil.getNow());
+        submitted.setUpdatedAt(TimeUtil.getNow());
+        repo.save(submitted);
     }
 
 }

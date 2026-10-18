@@ -1,5 +1,6 @@
 package lv.bkeeper.domain;
 
+import lv.bkeeper.controller.Identifiable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 import lombok.Data;
@@ -18,7 +19,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("supplier")
-public class Supplier {
+public class Supplier implements Identifiable {
 
     @Id
     private Long id;

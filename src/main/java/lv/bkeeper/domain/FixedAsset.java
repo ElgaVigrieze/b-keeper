@@ -1,5 +1,6 @@
 package lv.bkeeper.domain;
 
+import lv.bkeeper.controller.Identifiable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -20,7 +21,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("fixed_asset")
-public class FixedAsset {
+public class FixedAsset implements Identifiable {
 
     @Id
     private Long id;

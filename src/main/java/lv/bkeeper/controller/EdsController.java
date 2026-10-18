@@ -3,7 +3,6 @@ package lv.bkeeper.controller;
 import lv.bkeeper.domain.Company;
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.EdsSubmissionRepository;
-import lv.bkeeper.repository.JournalEntryRepository;
 import lv.bkeeper.service.EdsReportService;
 import lv.bkeeper.service.EdsXmlService;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,6 @@ public class EdsController {
     private final CompanyRepository       companyRepo;
     private final EdsReportService        reportService;
     private final EdsXmlService           xmlService;
-    private final JournalEntryRepository  journalRepo;
 
     // ── PVN declaration ───────────────────────────────────────────────────────
 

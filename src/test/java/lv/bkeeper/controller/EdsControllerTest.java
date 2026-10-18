@@ -3,7 +3,6 @@ package lv.bkeeper.controller;
 import lv.bkeeper.domain.Company;
 import lv.bkeeper.repository.CompanyRepository;
 import lv.bkeeper.repository.EdsSubmissionRepository;
-import lv.bkeeper.repository.JournalEntryRepository;
 import lv.bkeeper.service.EdsReportService;
 import lv.bkeeper.service.EdsXmlService;
 import org.junit.jupiter.api.Test;
@@ -16,7 +15,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -43,9 +41,6 @@ class EdsControllerTest {
 
     @MockitoBean
     private EdsXmlService xmlService;
-
-    @MockitoBean
-    private JournalEntryRepository journalRepo;
 
     // ── PVN declaration ───────────────────────────────────────────────────────
 
@@ -136,46 +131,63 @@ class EdsControllerTest {
     // ── UIN ──────────────────────────────────────────────────────────────────
 
     @Test
-    void uin_shouldComputeProfitFromJournalSums() throws Exception {
-        when(journalRepo.sumIncomeByYear(2025)).thenReturn(10000.0);
-        when(journalRepo.sumExpenseByYear(2025)).thenReturn(4000.0);
-        when(companyRepo.findById(1)).thenReturn(Optional.empty());
+    void uin_shouldExposeReportFigures() throws Exception {
+        EdsReportService.UinReport uin = new EdsReportService.UinReport();
+        uin.year            = 2025;
+        uin.totalIncome     = 10000.0;
+        uin.totalExpense    = 4000.0;
+        uin.profitBeforeTax = 6000.0;
+        when(reportService.uinReport(2025)).thenReturn(uin);
 
         mockMvc.perform(get("/eds/uin").param("year", "2025"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("eds/uin"))
+                .andExpect(model().attribute("uin", uin))
                 .andExpect(model().attribute("displayYear", 2025))
                 .andExpect(model().attribute("yearIncome", 10000.0))
                 .andExpect(model().attribute("yearExpense", 4000.0))
                 .andExpect(model().attribute("profit", 6000.0))
                 .andExpect(model().attribute("currentPage", "eds-uin"));
+
+        verify(reportService).uinReport(2025);
     }
 
     @Test
     void uin_withoutYear_shouldDefaultToPreviousYear() throws Exception {
         int previousYear = java.time.LocalDate.now().getYear() - 1;
-        when(journalRepo.sumIncomeByYear(previousYear)).thenReturn(1000.0);
-        when(journalRepo.sumExpenseByYear(previousYear)).thenReturn(400.0);
-        when(companyRepo.findById(1)).thenReturn(Optional.empty());
+        when(reportService.uinReport(previousYear)).thenReturn(new EdsReportService.UinReport());
 
         mockMvc.perform(get("/eds/uin"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("displayYear", previousYear));
+
+        verify(reportService).uinReport(previousYear);
     }
 
     // ── Annual report ────────────────────────────────────────────────────────
 
     @Test
-    void annual_shouldComputeMonthlyBreakdown() throws Exception {
-        when(journalRepo.sumIncomeByYear(2025)).thenReturn(12000.0);
-        when(journalRepo.sumExpenseByYear(2025)).thenReturn(7200.0);
-        when(journalRepo.sumIncomeByPeriod(eq(2025), anyInt())).thenReturn(1000.0);
-        when(journalRepo.sumExpenseByPeriod(eq(2025), anyInt())).thenReturn(600.0);
-        when(companyRepo.findById(1)).thenReturn(Optional.empty());
+    void annual_shouldRenderReportWithMonthlyBreakdown() throws Exception {
+        EdsReportService.AnnualReport report = new EdsReportService.AnnualReport();
+        report.year         = 2025;
+        report.netTurnover  = 12000.0;
+        report.costOfSales  = 7200.0;
+        report.netProfit    = 4800.0;
+        // controller computes yearExpense = costOfSales + personnelCostsTotal + depreciationExpense
+        // Arrays are length 13 and month-indexed 1..12 — annual.html iterates
+        // #numbers.sequence(1,12) and reads monthlyIncome[m], so index 0 stays unused.
+        report.monthlyIncome  = new double[13];
+        report.monthlyExpense = new double[13];
+        for (int m = 1; m <= 12; m++) {
+            report.monthlyIncome[m]  = 1000.0;
+            report.monthlyExpense[m] = 600.0;
+        }
+        when(reportService.annualReport(2025)).thenReturn(report);
 
         mockMvc.perform(get("/eds/annual").param("year", "2025"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("eds/annual"))
+                .andExpect(model().attribute("report", report))
                 .andExpect(model().attribute("displayYear", 2025))
                 .andExpect(model().attribute("yearIncome", 12000.0))
                 .andExpect(model().attribute("yearExpense", 7200.0))
@@ -184,7 +196,6 @@ class EdsControllerTest {
                 .andExpect(model().attributeExists("monthlyExpense"))
                 .andExpect(model().attribute("currentPage", "eds-annual"));
 
-        verify(journalRepo).sumIncomeByPeriod(2025, 1);
-        verify(journalRepo).sumExpenseByPeriod(2025, 12);
+        verify(reportService).annualReport(2025);
     }
 }

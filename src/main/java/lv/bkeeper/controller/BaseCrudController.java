@@ -11,13 +11,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 
 @RequiredArgsConstructor
-public abstract class BaseCrudController<T ,R extends CrudRepository<T, Long>> {
+public abstract class BaseCrudController<T extends Identifiable ,R extends CrudRepository<T, Long>> {
 
     protected abstract R getRepo();
     protected abstract String getEntityName();
     protected abstract T createDefaultEntityForm();
-    protected abstract void saveEditedEntity(T submitted);
-
+    protected abstract void saveExisting(T submitted);
+    protected abstract void saveNew(T submitted);
 
     @GetMapping
     public String list(Model model) {
@@ -50,7 +50,12 @@ public abstract class BaseCrudController<T ,R extends CrudRepository<T, Long>> {
 
     @PostMapping("/save")
     public String save(@ModelAttribute T submitted, RedirectAttributes ra) {
-        saveEditedEntity(submitted);
+        System.out.println(submitted);
+        if (submitted.getId() != null) {
+            saveExisting(submitted);
+        } else {
+            saveNew(submitted);
+        }
         ra.addFlashAttribute("success", getSuccessMessage(getEntityName(), "save"));
         return "redirect:/" + getEntityName()+ "s";
     }
@@ -62,6 +67,7 @@ public abstract class BaseCrudController<T ,R extends CrudRepository<T, Long>> {
             case "customer" -> entityInLv = "Klients";
             case "employee" -> entityInLv = "Darbinieks";
             case "supplier" -> entityInLv = "Piegādātājs";
+            case "asset" -> entityInLv = "Aktīvs";
         }
         switch (action) {
             case "delete" -> actionInLv = " dzēsts";
