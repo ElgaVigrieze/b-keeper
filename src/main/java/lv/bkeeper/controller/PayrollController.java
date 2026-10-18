@@ -22,7 +22,6 @@ public class PayrollController {
 
     private final PayrollEntryRepository payrollRepo;
     private final EmployeeRepository     employeeRepo;
-    private final CompanyRepository      companyRepo;
 
     // Latvian tax rates 2026
     private static final double VSAOI_EMPLOYER = 0.2359;
@@ -59,7 +58,6 @@ public class PayrollController {
         model.addAttribute("displayMonth", m);
         model.addAttribute("months",       DashboardController.MONTHS);
         model.addAttribute("currentPage",  "payroll");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "payroll/list";
     }
 

@@ -55,7 +55,6 @@ public class EdsController {
         model.addAttribute("monthName",    DashboardController.MONTHS.get(m));
         model.addAttribute("submissions",  repo.findByPeriodYearOrderByPeriodMonth(y));
         model.addAttribute("currentPage",  "eds-pvn");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "eds/pvn";
     }
 
@@ -91,7 +90,6 @@ public class EdsController {
         model.addAttribute("monthName",    DashboardController.MONTHS.get(m));
         model.addAttribute("submissions",  repo.findByPeriodYearOrderByPeriodMonth(y));
         model.addAttribute("currentPage",  "eds-ddz");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "eds/ddz";
     }
 
@@ -124,7 +122,6 @@ public class EdsController {
         model.addAttribute("profit",       profit);
         model.addAttribute("submissions",  repo.findByPeriodYearOrderByPeriodMonth(y));
         model.addAttribute("currentPage",  "eds-uin");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "eds/uin";
     }
 
@@ -154,7 +151,6 @@ public class EdsController {
         model.addAttribute("months",         DashboardController.MONTHS);
         model.addAttribute("submissions",    repo.findByPeriodYearOrderByPeriodMonth(y));
         model.addAttribute("currentPage",    "eds-annual");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "eds/annual";
     }
 

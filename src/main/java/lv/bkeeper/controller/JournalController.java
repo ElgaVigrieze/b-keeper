@@ -15,7 +15,6 @@ import java.time.LocalDate;
 public class JournalController {
 
     private final JournalEntryRepository repo;
-    private final CompanyRepository companyRepo;
 
     @GetMapping
     public String list(@RequestParam(required = false) Integer year,
@@ -36,7 +35,6 @@ public class JournalController {
         model.addAttribute("displayMonth",  m);
         model.addAttribute("months",        DashboardController.MONTHS);
         model.addAttribute("currentPage",   "journal");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "journal/list";
     }
 }

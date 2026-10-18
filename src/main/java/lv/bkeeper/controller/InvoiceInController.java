@@ -30,7 +30,6 @@ import java.util.Optional;
 public class InvoiceInController {
 
     private final InvoiceInRepository    repo;
-    private final CompanyRepository      companyRepo;
     private final InvoiceOcrService      ocrService;
     private final JournalService         journalService;
     private final DocumentStorageService storageService;
@@ -52,7 +51,6 @@ public class InvoiceInController {
         model.addAttribute("displayMonth", m);
         model.addAttribute("months",       DashboardController.MONTHS);
         model.addAttribute("currentPage",  "invoices-in");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/in-list";
     }
 
@@ -65,7 +63,6 @@ public class InvoiceInController {
         model.addAttribute("extractedInfo", "");
         model.addAttribute("matchedSupplier", "");
         model.addAttribute("suppliers",     supplierRepo.findByActiveTrueOrderByName());
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/in-form";
     }
 
@@ -135,7 +132,6 @@ public class InvoiceInController {
         model.addAttribute("matchedSupplier",  matchedMsg);
         model.addAttribute("suppliers",        supplierRepo.findByActiveTrueOrderByName());
         model.addAttribute("currentPage",      "invoices-in");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/in-form";
     }
 
@@ -148,7 +144,6 @@ public class InvoiceInController {
         model.addAttribute("matchedSupplier", "");
         model.addAttribute("suppliers",       supplierRepo.findByActiveTrueOrderByName());
         model.addAttribute("currentPage",     "invoices-in");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/in-form";
     }
 
@@ -217,7 +212,6 @@ public class InvoiceInController {
         model.addAttribute("matchedSupplier","");
         model.addAttribute("suppliers",       supplierRepo.findByActiveTrueOrderByName());
         model.addAttribute("currentPage",     "invoices-in");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/in-form";
     }
 

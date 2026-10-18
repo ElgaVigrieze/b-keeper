@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 public class InvoiceOutController {
 
     private final InvoiceOutRepository repo;
-    private final CompanyRepository    companyRepo;
     private final JournalService       journalService;
     private final CustomerRepository   customerRepo;
 
@@ -41,7 +40,6 @@ public class InvoiceOutController {
         model.addAttribute("displayMonth", m);
         model.addAttribute("months",       DashboardController.MONTHS);
         model.addAttribute("currentPage",  "invoices-out");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/out-list";
     }
 
@@ -59,7 +57,6 @@ public class InvoiceOutController {
                 .build());
         model.addAttribute("customers",   customerRepo.findByActiveTrueOrderByName());
         model.addAttribute("currentPage", "invoices-out");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/out-form";
     }
 
@@ -68,7 +65,6 @@ public class InvoiceOutController {
         repo.findById(id).ifPresent(inv -> model.addAttribute("invoice", inv));
         model.addAttribute("customers",   customerRepo.findByActiveTrueOrderByName());
         model.addAttribute("currentPage", "invoices-out");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/out-form";
     }
 
@@ -129,7 +125,6 @@ public class InvoiceOutController {
         model.addAttribute("invoice",     invoice);
         model.addAttribute("customers",   customerRepo.findByActiveTrueOrderByName());
         model.addAttribute("currentPage", "invoices-out");
-        companyRepo.findById(1).ifPresent(c -> model.addAttribute("company", c));
         return "invoices/out-form";
     }
 
